@@ -265,22 +265,19 @@
 </div>
 
 <style>
-	/* One continuous surface, OneNote-style: flat columns split by hairlines,
-	   no floating panels. */
+	/* One continuous surface, OneNote-style: the whole content area, flat
+	   columns split by hairlines, no container box at all. */
 	.workspace {
 		display: grid;
 		grid-template-columns: 185px 215px minmax(0, 1fr);
 		align-items: stretch;
-		min-height: calc(100vh - 6rem);
-		border: 1px solid var(--border);
-		border-radius: 10px;
-		overflow: hidden;
+		height: 100vh;
 		background: var(--panel);
 	}
 	@media (max-width: 900px) {
 		.workspace {
 			grid-template-columns: 1fr;
-			min-height: 0;
+			height: auto;
 		}
 		.pane {
 			border-right: none !important;
@@ -294,6 +291,7 @@
 		flex-direction: column;
 		gap: 0.4rem;
 		min-height: 0;
+		overflow: hidden;
 	}
 	.pane.pages {
 		background: color-mix(in srgb, var(--panel) 60%, var(--bg));
@@ -429,6 +427,8 @@
 		flex-direction: column;
 		gap: 0;
 		min-width: 0;
+		min-height: 0;
+		overflow: hidden;
 		background: var(--bg);
 	}
 	.title-block {

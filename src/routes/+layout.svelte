@@ -67,7 +67,7 @@
 			</div>
 		</aside>
 
-		<main>
+		<main class:full={page.url.pathname.startsWith('/journal')}>
 			{@render children()}
 		</main>
 	</div>
@@ -239,6 +239,11 @@
 		padding: 1.4rem 2rem 3rem;
 		min-width: 0;
 		max-width: 1280px;
+	}
+	/* Full-bleed workspaces (Journal) — the content IS the surface. */
+	main.full {
+		padding: 0;
+		max-width: none;
 	}
 	@media (max-width: 760px) {
 		.shell {
