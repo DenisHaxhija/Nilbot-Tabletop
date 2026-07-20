@@ -22,6 +22,17 @@ Clicking any token with a linked sheet in a battle opens the stat block,
 same as enemies. Links are re-read from the DB on every battle load, so
 relinking after a layout was saved still takes effect.
 
+Baked Custom sheets are re-editable: an "✎ Edit sheet" button on your
+own sheets in the bestiary opens them back in the Sheet Builder
+(`/builder?edit=<slug>`). From there both paths work — keep refining in
+AI chat, or flip on "✎ Edit by hand" for a structured form (all
+scalars, ability scores, speed/skills as "walk 30, fly 60"-style text,
+and add/remove/edit for special abilities, actions, bonus actions,
+reactions and legendary actions). Saving updates the sheet in place —
+the slug never changes, so character/PC links and battle tokens keep
+pointing at it; a new token image replaces the old one with correct
+storage accounting.
+
 Spoiler protection for the Characters section:
 - **Hidden groups**: the 🙈 toggle on a group card moves it into a
   collapsed "hidden groups" bar at the bottom of the Characters index —
@@ -47,7 +58,9 @@ Dashboard → party panel → ＋📜 on a PC → link → click their blue toke
 in a battle. Present views are unchanged — sheets are DM-only (hard
 rule 6). Spoilers: hover a group card → 🙈 to hide it, then find it in
 the collapsed bar at the bottom; 🎭 on a character card, send them to
-canvas, and the canvas shows "???".
+canvas, and the canvas shows "???". Re-editing: Bestiary → one of your
+Custom sheets → ✎ Edit sheet → change something by hand or in chat →
+Save changes → the sheet page shows the revision.
 
 ## Deploy steps
 None. (Column is added automatically at boot.)

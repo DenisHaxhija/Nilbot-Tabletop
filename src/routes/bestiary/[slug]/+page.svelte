@@ -5,7 +5,12 @@
 
 <svelte:head><title>{data.meta.name} · NilBot</title></svelte:head>
 
-<p><a href="/bestiary">← Bestiary</a></p>
+<div class="bar">
+	<a href="/bestiary">← Bestiary</a>
+	{#if data.editable}
+		<a class="edit-link" href="/builder?edit={encodeURIComponent(data.slug)}">✎ Edit sheet</a>
+	{/if}
+</div>
 
 <div class="wrap">
 	<StatBlock meta={data.meta} monster={data.monster} />
@@ -14,5 +19,23 @@
 <style>
 	.wrap {
 		max-width: 760px;
+	}
+	.bar {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		max-width: 760px;
+		margin: 1rem 0;
+	}
+	.edit-link {
+		text-decoration: none;
+		font-size: 0.85rem;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		padding: 0.3rem 0.7rem;
+		color: var(--text);
+	}
+	.edit-link:hover {
+		border-color: var(--accent);
 	}
 </style>

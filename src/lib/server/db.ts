@@ -323,6 +323,7 @@ export interface MonsterRow {
   layer: string;
   data: string;
   token: string | null;
+  user_id: number | null;
 }
 
 export interface MonsterFilters {
