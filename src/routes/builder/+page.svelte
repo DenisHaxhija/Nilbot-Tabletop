@@ -33,6 +33,48 @@
 		tokenPreview = file ? URL.createObjectURL(file) : (data.edit?.tokenUrl ?? null);
 	}
 
+	// Blank Open5e-shaped sheet for building without AI.
+	function startByHand() {
+		sheet = {
+			name: '',
+			size: 'Medium',
+			type: 'humanoid',
+			alignment: 'unaligned',
+			armor_class: 10,
+			armor_desc: '',
+			hit_points: 10,
+			hit_dice: '',
+			speed: { walk: 30 },
+			strength: 10,
+			dexterity: 10,
+			constitution: 10,
+			intelligence: 10,
+			wisdom: 10,
+			charisma: 10,
+			skills: {},
+			damage_vulnerabilities: '',
+			damage_resistances: '',
+			damage_immunities: '',
+			condition_immunities: '',
+			senses: '',
+			languages: '',
+			challenge_rating: '1',
+			special_abilities: [],
+			actions: [],
+			bonus_actions: [],
+			reactions: [],
+			legendary_desc: '',
+			legendary_actions: []
+		};
+		manual = true;
+		chatLog = [
+			{
+				who: 'ai',
+				text: 'Blank sheet — fill it in by hand. The AI chat still works if you want help along the way.'
+			}
+		];
+	}
+
 	// SvelteKit reuses this component across navigations — resync when the
 	// ?edit target changes (or is cleared via the sidebar link).
 	$effect(() => {
@@ -140,8 +182,9 @@
 		Editing <b>{sheet?.name}</b> — revise it in chat, flip on hand editing for direct control,
 		then save your changes back to the bestiary.
 	{:else}
-		Describe a character or creature, add its token, and let the AI draft a full stat block.
-		Refine it in chat until it's right, then add it to your bestiary as <b>Custom</b>.
+		Describe a character or creature, add its token, and let the AI draft a full stat block —
+		or start from a blank sheet and build it by hand. Refine in chat or edit directly until
+		it's right, then add it to your bestiary as <b>Custom</b>.
 	{/if}
 </p>
 
@@ -167,9 +210,14 @@
 		{/if}
 
 		{#if !sheet}
-			<button class="primary" onclick={() => generate(false)} disabled={busy || !description.trim()}>
-				{busy ? 'Designing…' : '✦ Generate sheet'}
-			</button>
+			<div class="row">
+				<button class="primary" onclick={() => generate(false)} disabled={busy || !description.trim()}>
+					{busy ? 'Designing…' : '✦ Generate sheet'}
+				</button>
+				<button onclick={startByHand} disabled={busy} title="Skip the AI — start from a blank stat block">
+					✎ Start by hand
+				</button>
+			</div>
 		{/if}
 
 		{#if chatLog.length}
