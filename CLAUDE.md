@@ -49,7 +49,11 @@ deploys it. Nothing reaches players except through `live`.
 3. **LLM calls go through one seam** — `src/lib/server/encounter.ts` and
    `src/lib/server/builder.ts` (spawn `claude -p`). Never add LLM calls
    elsewhere; parse output defensively.
-4. **`npm run check` must report 0 errors** before a PR is ready.
+4. **A branch is PR-ready only when** `npm run check` reports 0 errors
+   AND it has a changelog entry: one file per feature branch in
+   `changelog/` (template in `changelog/README.md`). The **Deploy steps**
+   section is the important one — anything the pipeline won't do
+   (migrations, scripts, env vars) must be written there or it gets lost.
 5. **Never blanket-delete from shared tables** (users, monsters, maps…) in
    tests/cleanup — scope deletes to exactly the rows you created.
 6. **Presentation views (`/present/...`) are player-safe**: no HP numbers,
@@ -91,8 +95,8 @@ npm run dev                           # http://localhost:5173
   `retag-maps.mjs` (re-run terrain tagging).
 - AI features (Battle Extractor, Sheet Builder) require the `claude` CLI
   installed and logged in on your machine; everything else works without it.
-- Verify before PR: `npm run check` (0 errors) and click through what you
-  changed in the browser.
+- Verify before PR: `npm run check` (0 errors), click through what you
+  changed in the browser, and write the branch's `changelog/` entry.
 
 ### Production (context only — don't touch without Denis)
 
