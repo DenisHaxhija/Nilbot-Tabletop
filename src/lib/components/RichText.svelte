@@ -75,14 +75,12 @@
 		align-items: center;
 		gap: 0.15rem;
 		flex-wrap: wrap;
-		padding: 0.35rem 0.4rem;
-		background: var(--panel);
-		border: 1px solid var(--border);
-		border-radius: 8px 8px 0 0;
-		border-bottom: none;
+		padding: 0.3rem 1.3rem;
+		border-bottom: 1px solid var(--border);
 		position: sticky;
 		top: 0;
 		z-index: 5;
+		background: var(--bg);
 	}
 	.toolbar button {
 		background: transparent;
@@ -116,19 +114,14 @@
 		background: var(--border);
 		margin: 0 0.25rem;
 	}
+	/* An open page surface — no box, the column is the page. */
 	.canvas {
 		flex: 1;
 		min-height: 55vh;
-		background: var(--panel);
-		border: 1px solid var(--border);
-		border-radius: 0 0 8px 8px;
-		padding: 1rem 1.4rem;
+		padding: 0.9rem 1.4rem 2rem;
 		line-height: 1.65;
 		overflow-y: auto;
 		outline: none;
-	}
-	.canvas:focus {
-		border-color: var(--accent);
 	}
 	.canvas:empty::before {
 		content: 'Just start typing — like a OneNote page. Paste from OneNote keeps the formatting.';

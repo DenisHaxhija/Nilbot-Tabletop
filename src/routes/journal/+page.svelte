@@ -265,28 +265,38 @@
 </div>
 
 <style>
+	/* One continuous surface, OneNote-style: flat columns split by hairlines,
+	   no floating panels. */
 	.workspace {
 		display: grid;
 		grid-template-columns: 185px 215px minmax(0, 1fr);
-		gap: 0.8rem;
 		align-items: stretch;
 		min-height: calc(100vh - 6rem);
+		border: 1px solid var(--border);
+		border-radius: 10px;
+		overflow: hidden;
+		background: var(--panel);
 	}
 	@media (max-width: 900px) {
 		.workspace {
 			grid-template-columns: 1fr;
 			min-height: 0;
 		}
+		.pane {
+			border-right: none !important;
+			border-bottom: 1px solid var(--border);
+		}
 	}
 	.pane {
-		background: var(--panel);
-		border: 1px solid var(--border);
-		border-radius: 10px;
-		padding: 0.55rem;
+		border-right: 1px solid var(--border);
+		padding: 0.55rem 0.45rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.4rem;
 		min-height: 0;
+	}
+	.pane.pages {
+		background: color-mix(in srgb, var(--panel) 60%, var(--bg));
 	}
 	.pane-head {
 		font-size: 0.76rem;
@@ -390,16 +400,19 @@
 		font-size: 0.85rem;
 		padding: 0.3rem 0.45rem;
 	}
+	/* Flat "+ Page" rows like OneNote, not boxed buttons. */
 	.ghost {
 		background: transparent;
-		border: 1px dashed var(--border);
+		border: none;
+		border-top: 1px solid var(--border);
+		border-radius: 0;
 		color: var(--muted);
-		font-size: 0.82rem;
-		padding: 0.32rem 0.5rem;
+		font-size: 0.84rem;
+		padding: 0.45rem 0.5rem 0.2rem;
+		text-align: left;
 	}
 	.ghost:hover {
-		border-color: var(--accent);
-		color: var(--text);
+		color: var(--accent);
 	}
 	form input,
 	.rename input {
@@ -416,10 +429,11 @@
 		flex-direction: column;
 		gap: 0;
 		min-width: 0;
+		background: var(--bg);
 	}
 	.title-block {
 		border-bottom: 2px solid var(--sec);
-		margin-bottom: 0.7rem;
+		margin: 0.9rem 1.4rem 0;
 		padding-bottom: 0.35rem;
 	}
 	.title {
@@ -452,8 +466,6 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		border: 2px dashed var(--border);
-		border-radius: 10px;
 		color: var(--muted);
 		text-align: center;
 		line-height: 1.7;
