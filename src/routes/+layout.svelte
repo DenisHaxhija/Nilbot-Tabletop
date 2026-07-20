@@ -17,8 +17,7 @@
 		{ href: '/builder', label: 'Sheet Builder', icon: '✦' },
 		{ href: '/shop', label: 'Shop', icon: '🛒' },
 		{ href: '/music', label: 'Music', icon: '♪' },
-		{ href: '/names', label: 'Name Generator', icon: '⚄' },
-		{ href: '/journal', label: 'Journal', icon: '📖' }
+		{ href: '/names', label: 'Name Generator', icon: '⚄' }
 	];
 
 	const bare = $derived(
@@ -50,6 +49,13 @@
 				{/each}
 			</nav>
 			<div class="sidebar-foot">
+				<a
+					href="/journal"
+					class="settings-link"
+					class:active={page.url.pathname.startsWith('/journal')}
+				>
+					<span class="icon">📖</span>Journal
+				</a>
 				<a
 					href="/settings"
 					class="settings-link"

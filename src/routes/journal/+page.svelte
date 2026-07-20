@@ -1,21 +1,23 @@
 <script lang="ts">
-	import { marked } from 'marked';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { confirmDialog } from '$lib/confirm.svelte';
+	import RichText from '$lib/components/RichText.svelte';
 
 	let { data } = $props();
 
-	// --- Selected page editor state (resynced only when the page changes,
-	// so autosave-triggered reloads never clobber in-flight typing) ---
+	// OneNote-ish section colors, stable per name.
+	const PALETTE = ['#c86baa', '#7a63c8', '#5b8dd6', '#58a68f', '#c8a24b', '#c0605e', '#6aa84f', '#b07d3c'];
+	function sectionColor(name: string): string {
+		let h = 0;
+		for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 997;
+		return PALETTE[h % PALETTE.length];
+	}
+
+	// --- Selected page (resynced only when the id changes) ---
 	let pageId = $state(data.selected?.id ?? null);
 	let title = $state(data.selected?.title ?? '');
 	let content = $state(data.selected?.content ?? '');
-	let pageSection = $state(data.selected?.section ?? '');
 	let saveState = $state<'saved' | 'saving' | 'error'>('saved');
-	let showPreview = $state(false);
-
-	// Which section the middle pane shows — follows the selected page, but
-	// can be browsed independently.
 	let viewSection = $state(data.selected?.section ?? data.sections[0]?.name ?? '');
 
 	$effect(() => {
@@ -23,21 +25,19 @@
 		pageId = data.selected?.id ?? null;
 		title = data.selected?.title ?? '';
 		content = data.selected?.content ?? '';
-		pageSection = data.selected?.section ?? '';
 		viewSection = data.selected?.section ?? data.sections[0]?.name ?? '';
 		saveState = 'saved';
 	});
 
-	const viewPages = $derived(
-		data.sections.find((s: any) => s.name === viewSection)?.pages ?? []
-	);
+	const viewPages = $derived(data.sections.find((s: any) => s.name === viewSection)?.pages ?? []);
+	const accent = $derived(sectionColor(viewSection));
 
 	let saveTimer: ReturnType<typeof setTimeout>;
 	function scheduleSave() {
 		if (pageId === null) return;
 		saveState = 'saving';
 		clearTimeout(saveTimer);
-		saveTimer = setTimeout(save, 1200);
+		saveTimer = setTimeout(save, 1000);
 	}
 	async function save() {
 		if (pageId === null) return;
@@ -45,23 +45,25 @@
 			const res = await fetch(`/api/journal/${pageId}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ title, content, section: pageSection })
+				body: JSON.stringify({ title, content })
 			});
 			saveState = res.ok ? 'saved' : 'error';
-			invalidateAll(); // keep rail titles/sections fresh
+			invalidateAll(); // page rail titles follow the title field
 		} catch {
 			saveState = 'error';
 		}
 	}
 
 	function openPage(id: number) {
-		if (id === pageId) return;
-		goto(`/journal?p=${id}`, { noScroll: true, keepFocus: false });
+		if (id !== pageId) goto(`/journal?p=${id}`, { noScroll: true });
 	}
 
-	// --- Creating ---
-	let newSection = $state('');
+	// --- Sections ---
 	let addingSection = $state(false);
+	let newSection = $state('');
+	let renaming = $state<string | null>(null);
+	let renameDraft = $state('');
+
 	async function createPage(section: string) {
 		const res = await fetch('/api/journal', {
 			method: 'POST',
@@ -82,11 +84,51 @@
 		addingSection = false;
 		await createPage(name);
 	}
+	async function renameSection(e: SubmitEvent) {
+		e.preventDefault();
+		const to = renameDraft.trim();
+		const from = renaming;
+		renaming = null;
+		if (!to || to === from || from === null) return;
+		await fetch('/api/journal', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ from, to })
+		});
+		if (viewSection === from) viewSection = to;
+		await invalidateAll();
+	}
+	async function removeSection(s: { name: string; pages: any[] }) {
+		const count = s.pages.reduce((n: number, p: any) => n + 1 + p.subs.length, 0);
+		const ok = await confirmDialog({
+			title: 'Delete section?',
+			message: `“${s.name || 'Loose pages'}” and its ${count} page(s) will be deleted.`,
+			confirmLabel: 'Delete section',
+			danger: true
+		});
+		if (!ok) return;
+		await fetch('/api/journal', {
+			method: 'DELETE',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ section: s.name })
+		});
+		await goto('/journal', { noScroll: true });
+		await invalidateAll();
+	}
 
+	// --- Pages: indent (make subpage of previous top-level page) / promote ---
+	async function setParent(id: number, parentId: number | null) {
+		await fetch(`/api/journal/${id}`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ parent_id: parentId })
+		});
+		await invalidateAll();
+	}
 	async function removePage(p: { id: number; title: string }) {
 		const ok = await confirmDialog({
 			title: 'Delete page?',
-			message: `“${p.title || 'Untitled page'}” will be deleted.`,
+			message: `“${p.title || 'Untitled page'}” will be deleted. Its subpages stay, promoted a level.`,
 			confirmLabel: 'Delete',
 			danger: true
 		});
@@ -95,30 +137,67 @@
 		if (p.id === pageId) await goto('/journal', { noScroll: true });
 		await invalidateAll();
 	}
-
-	// Moving the open page to another section (datalist of existing ones).
-	function onSectionEdit() {
-		viewSection = pageSection;
-		scheduleSave();
-	}
 </script>
 
 <svelte:head><title>Journal · NilBot</title></svelte:head>
 
-<div class="workspace">
+{#snippet pageRow(p: any, sub: boolean, prevTopId: number | null)}
+	<li class="page-row" class:sub>
+		<button class="row" class:on={p.id === pageId} onclick={() => openPage(p.id)}>
+			<span class="row-label">
+				{p.id === pageId ? title || 'Untitled page' : p.title || 'Untitled page'}
+			</span>
+		</button>
+		<span class="row-btns">
+			{#if sub}
+				<button class="mini-op" title="Promote to page" onclick={() => setParent(p.id, null)}>←</button>
+			{:else if prevTopId !== null}
+				<button class="mini-op" title="Make subpage of the page above" onclick={() => setParent(p.id, prevTopId)}>→</button>
+			{/if}
+			<button class="mini-op del" title="Delete page" onclick={() => removePage(p)}>✕</button>
+		</span>
+	</li>
+{/snippet}
+
+<div class="workspace" style="--sec: {accent}">
 	<aside class="pane sections">
 		<div class="pane-head">Sections</div>
 		<ul>
 			{#each data.sections as s (s.name)}
-				<li>
-					<button
-						class="row"
-						class:on={s.name === viewSection}
-						onclick={() => (viewSection = s.name)}
-					>
-						<span class="row-label">{s.name || 'Loose pages'}</span>
-						<small>{s.pages.length}</small>
-					</button>
+				<li class="sec-row">
+					{#if renaming === s.name}
+						<form class="rename" onsubmit={renameSection}>
+							<!-- svelte-ignore a11y_autofocus -->
+							<input
+								bind:value={renameDraft}
+								autofocus
+								onblur={() => (renaming = null)}
+							/>
+						</form>
+					{:else}
+						<button
+							class="row"
+							class:on={s.name === viewSection}
+							style="--sec: {sectionColor(s.name)}"
+							onclick={() => (viewSection = s.name)}
+						>
+							<span class="swatch"></span>
+							<span class="row-label">{s.name || 'Loose pages'}</span>
+						</button>
+						<span class="row-btns">
+							{#if s.name}
+								<button
+									class="mini-op"
+									title="Rename section"
+									onclick={() => {
+										renaming = s.name;
+										renameDraft = s.name;
+									}}>✎</button
+								>
+							{/if}
+							<button class="mini-op del" title="Delete section" onclick={() => removeSection(s)}>✕</button>
+						</span>
+					{/if}
 				</li>
 			{/each}
 		</ul>
@@ -133,70 +212,52 @@
 				/>
 			</form>
 		{:else}
-			<button class="ghost" onclick={() => (addingSection = true)}>＋ New section</button>
+			<button class="ghost" onclick={() => (addingSection = true)}>＋ Section</button>
 		{/if}
 	</aside>
 
 	<aside class="pane pages">
-		<div class="pane-head">
-			<span class="row-label">{viewSection || 'Loose pages'}</span>
-			{#if data.sections.length}
-				<button class="mini" title="New page here" onclick={() => createPage(viewSection)}>＋</button>
-			{/if}
-		</div>
+		<div class="pane-head head-colored">{viewSection || 'Loose pages'}</div>
 		<ul>
-			{#each viewPages as p (p.id)}
-				<li class="page-row">
-					<button class="row" class:on={p.id === pageId} onclick={() => openPage(p.id)}>
-						<span class="row-label">
-							{p.id === pageId ? title || 'Untitled page' : p.title || 'Untitled page'}
-						</span>
-					</button>
-					<button class="del" title="Delete page" onclick={() => removePage(p)}>✕</button>
-				</li>
+			{#each viewPages as p, i (p.id)}
+				{@render pageRow(p, false, i > 0 ? viewPages[i - 1].id : null)}
+				{#each p.subs as sp (sp.id)}
+					{@render pageRow(sp, true, null)}
+				{/each}
 			{:else}
 				<li class="none">No pages here.</li>
 			{/each}
 		</ul>
+		{#if data.sections.length}
+			<button class="ghost" onclick={() => createPage(viewSection)}>＋ Page</button>
+		{/if}
 	</aside>
 
 	<div class="editor">
 		{#if pageId !== null}
-			<div class="editor-head">
-				<input class="title" bind:value={title} oninput={scheduleSave} placeholder="Page title" />
-				<span class="status" class:error={saveState === 'error'}>
-					{saveState === 'saved' ? '✓ saved' : saveState === 'saving' ? 'saving…' : 'save failed'}
-				</span>
-				<button onclick={() => (showPreview = !showPreview)}>
-					{showPreview ? 'Edit' : 'Preview'}
-				</button>
-			</div>
-			<label class="move">
-				Section
-				<input bind:value={pageSection} oninput={onSectionEdit} list="journal-sections" placeholder="none" />
-				<datalist id="journal-sections">
-					{#each data.sections as s (s.name)}
-						{#if s.name}<option value={s.name}></option>{/if}
-					{/each}
-				</datalist>
-			</label>
-			{#if showPreview}
-				<div class="preview">
-					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-					{@html marked(content)}
+			<div class="title-block">
+				<input class="title" bind:value={title} oninput={scheduleSave} placeholder="Untitled page" />
+				<div class="title-meta">
+					<span>{data.selected?.updated_at?.slice(0, 16) ?? ''}</span>
+					<span class="status" class:error={saveState === 'error'}>
+						{saveState === 'saved' ? '✓' : saveState === 'saving' ? '…' : 'save failed'}
+					</span>
 				</div>
-			{:else}
-				<textarea
-					bind:value={content}
-					oninput={scheduleSave}
-					placeholder="Write in markdown — # headings, **bold**, tables, lists… Preview shows the rendered page."
-				></textarea>
-			{/if}
+			</div>
+			{#key pageId}
+				<RichText
+					initial={content}
+					onchange={(html) => {
+						content = html;
+						scheduleSave();
+					}}
+				/>
+			{/key}
 		{:else}
 			<div class="blank">
 				<p>
 					Your campaign's encyclopedia — spells, pantheons, lore, houserules.<br />
-					Create a section to get the first page.
+					Create a section to get the first page. Pasting from OneNote keeps the formatting.
 				</p>
 			</div>
 		{/if}
@@ -206,10 +267,10 @@
 <style>
 	.workspace {
 		display: grid;
-		grid-template-columns: 180px 210px minmax(0, 1fr);
+		grid-template-columns: 185px 215px minmax(0, 1fr);
 		gap: 0.8rem;
 		align-items: stretch;
-		min-height: calc(100vh - 7rem);
+		min-height: calc(100vh - 6rem);
 	}
 	@media (max-width: 900px) {
 		.workspace {
@@ -221,22 +282,24 @@
 		background: var(--panel);
 		border: 1px solid var(--border);
 		border-radius: 10px;
-		padding: 0.6rem 0.6rem;
+		padding: 0.55rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.4rem;
 		min-height: 0;
 	}
 	.pane-head {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 0.4rem;
-		font-size: 0.78rem;
+		font-size: 0.76rem;
 		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		letter-spacing: 0.07em;
 		color: var(--muted);
 		padding: 0.2rem 0.4rem;
+	}
+	.head-colored {
+		color: var(--sec);
+		border-bottom: 2px solid var(--sec);
+		padding-bottom: 0.35rem;
+		font-weight: 600;
 	}
 	.pane ul {
 		list-style: none;
@@ -246,17 +309,23 @@
 		gap: 0.1rem;
 		overflow-y: auto;
 		flex: 1;
+		align-content: start;
+	}
+	.sec-row,
+	.page-row {
+		display: flex;
+		align-items: center;
+		min-width: 0;
 	}
 	.row {
 		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		gap: 0.4rem;
-		width: 100%;
+		align-items: center;
+		gap: 0.45rem;
+		flex: 1;
 		background: transparent;
 		border: none;
 		border-radius: 6px;
-		padding: 0.32rem 0.45rem;
+		padding: 0.34rem 0.45rem;
 		text-align: left;
 		color: var(--text);
 		font-size: 0.88rem;
@@ -265,12 +334,18 @@
 	.row:hover {
 		background: var(--panel-2);
 	}
-	.row.on {
-		background: rgba(127, 191, 127, 0.1);
-		color: var(--accent);
+	.sections .row.on {
+		background: color-mix(in srgb, var(--sec) 16%, transparent);
 	}
-	.row small {
-		color: var(--muted);
+	.pages .row.on {
+		background: color-mix(in srgb, var(--sec) 16%, transparent);
+		box-shadow: inset 2px 0 0 var(--sec);
+	}
+	.swatch {
+		width: 9px;
+		height: 9px;
+		border-radius: 3px;
+		background: var(--sec);
 		flex-shrink: 0;
 	}
 	.row-label {
@@ -278,24 +353,36 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.page-row {
+	.page-row.sub {
+		padding-left: 1.1rem;
+	}
+	.page-row.sub .row {
+		font-size: 0.84rem;
+		color: var(--muted);
+	}
+	.page-row.sub .row.on {
+		color: var(--text);
+	}
+	.row-btns {
 		display: flex;
-		align-items: center;
+		flex-shrink: 0;
+		opacity: 0;
 	}
-	.page-row .row {
-		flex: 1;
+	.sec-row:hover .row-btns,
+	.page-row:hover .row-btns {
+		opacity: 1;
 	}
-	.del {
+	.mini-op {
 		background: transparent;
 		border: none;
 		color: var(--muted);
-		padding: 0 0.25rem;
-		opacity: 0;
+		font-size: 0.78rem;
+		padding: 0.1rem 0.22rem;
 	}
-	.page-row:hover .del {
-		opacity: 1;
+	.mini-op:hover {
+		color: var(--text);
 	}
-	.del:hover {
+	.mini-op.del:hover {
 		color: var(--danger);
 	}
 	.none {
@@ -308,115 +395,57 @@
 		border: 1px dashed var(--border);
 		color: var(--muted);
 		font-size: 0.82rem;
-		padding: 0.3rem 0.5rem;
+		padding: 0.32rem 0.5rem;
 	}
 	.ghost:hover {
 		border-color: var(--accent);
 		color: var(--text);
 	}
-	.mini {
-		font-size: 0.82rem;
-		padding: 0.02rem 0.45rem;
-	}
-	form input {
+	form input,
+	.rename input {
 		width: 100%;
 		box-sizing: border-box;
 		font-size: 0.85rem;
+	}
+	.rename {
+		flex: 1;
 	}
 
 	.editor {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 0;
 		min-width: 0;
 	}
-	.editor-head {
-		display: flex;
-		align-items: center;
-		gap: 0.6rem;
+	.title-block {
+		border-bottom: 2px solid var(--sec);
+		margin-bottom: 0.7rem;
+		padding-bottom: 0.35rem;
 	}
 	.title {
-		flex: 1;
-		font-size: 1.25rem;
+		width: 100%;
+		box-sizing: border-box;
+		font-size: 1.45rem;
 		font-family: var(--serif);
 		background: transparent;
 		border: none;
-		border-bottom: 1px solid var(--border);
 		border-radius: 0;
-		padding: 0.3rem 0.1rem;
+		padding: 0.15rem 0.1rem;
 		color: var(--text);
-		min-width: 0;
 	}
 	.title:focus {
 		outline: none;
-		border-bottom-color: var(--accent);
 	}
-	.status {
+	.title-meta {
+		display: flex;
+		gap: 0.7rem;
+		align-items: baseline;
 		color: var(--muted);
-		font-size: 0.82rem;
-		white-space: nowrap;
+		font-size: 0.78rem;
+		padding: 0 0.15rem;
 	}
 	.status.error {
 		color: var(--danger);
-	}
-	.move {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-		font-size: 0.78rem;
-		color: var(--muted);
-	}
-	.move input {
-		font-size: 0.82rem;
-		width: 12rem;
-	}
-	.editor textarea {
-		flex: 1;
-		width: 100%;
-		box-sizing: border-box;
-		min-height: 60vh;
-		resize: vertical;
-		font: inherit;
-		line-height: 1.6;
-		padding: 0.9rem 1rem;
-	}
-	.preview {
-		flex: 1;
-		background: var(--panel);
-		border: 1px solid var(--border);
-		border-radius: 10px;
-		padding: 1rem 1.4rem;
-		min-height: 60vh;
-		line-height: 1.6;
-		overflow-x: auto;
-	}
-	.preview :global(h1),
-	.preview :global(h2),
-	.preview :global(h3) {
-		font-family: var(--serif);
-		color: var(--accent);
-	}
-	.preview :global(a) {
-		color: var(--accent);
-	}
-	.preview :global(blockquote) {
-		border-left: 3px solid var(--border);
-		margin-left: 0;
-		padding-left: 1rem;
-		color: var(--muted);
-	}
-	.preview :global(table) {
-		border-collapse: collapse;
-	}
-	.preview :global(td),
-	.preview :global(th) {
-		border: 1px solid var(--border);
-		padding: 0.3rem 0.6rem;
-	}
-	.preview :global(code) {
-		background: var(--panel-2);
-		padding: 0.1rem 0.35rem;
-		border-radius: 4px;
 	}
 	.blank {
 		flex: 1;
@@ -428,5 +457,6 @@
 		color: var(--muted);
 		text-align: center;
 		line-height: 1.7;
+		min-height: 60vh;
 	}
 </style>

@@ -3,16 +3,19 @@
 **Branch:** feature/dm-journal · **Date:** 2026-07-20 · **Author:** Denis (+ Claude)
 
 ## What changed
-New "Journal" entry at the bottom of the sidebar (above Settings):
-freeform markdown pages organized into sections (spells, pantheons,
-lore, houserules — whatever the campaign needs). It's a OneNote-style
-three-pane workspace on one screen: sections list → pages of the
-chosen section → editor. Creating a section starts it with one blank
-page. The editor autosaves as you type, has an edit/preview toggle
-(same marked rendering as Sessions), and a section field (with
-datalist) to move a page between sections. Deep links work via
-`/journal?p=<id>`; old `/journal/<id>` URLs redirect. New
-`journal_pages` table, per-user scoped.
+New "Journal" entry grouped with Settings at the bottom of the sidebar.
+It's a OneNote-style three-pane workspace: colored sections → pages of
+the chosen section → the page itself. Unlike Sessions (markdown), the
+journal page is WYSIWYG — a contenteditable canvas with a formatting
+toolbar (headings, bold/italic/underline/strike, highlight, lists,
+divider, clear formatting); you type and it's formatted, no preview
+toggle, and pasting from OneNote keeps the formatting. Sections have
+stable colors, hover ✎ rename and ✕ delete; pages support one level of
+OneNote-style subpages (hover → to indent under the page above, ← to
+promote; deleting a parent promotes its subpages). Autosaves as you
+type. Deep links via `/journal?p=<id>`; old `/journal/<id>` URLs
+redirect. New `journal_pages` table (`parent_id` for subpages),
+per-user scoped. Content is stored as HTML.
 
 ## Why
 The one thing OneNote still had over NilBot for a fellow DM: a place to
@@ -21,11 +24,11 @@ for prep and battle extraction; the Journal is the campaign's
 encyclopedia.
 
 ## How to test
-Sidebar → Journal → ＋ New section → the blank page opens selected;
-title it, write markdown, watch "✓ saved", flip Preview. ＋ in the
-pages pane adds a sibling; clicking sections/pages switches without
-leaving the screen; the Section field moves a page. Delete via ✕ on a
-hovered page row.
+Sidebar → Journal (bottom, above Settings) → ＋ Section → the blank
+page opens; title it, type formatted text with the toolbar, watch the
+✓. ＋ Page adds siblings; hover a page row → "→" makes it a subpage,
+"←" promotes it back; hover a section → ✎ rename, ✕ delete. Paste
+something from real OneNote and check the formatting survives.
 
 ## Deploy steps
 None. (Table is created automatically at boot.)

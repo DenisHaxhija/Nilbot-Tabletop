@@ -293,6 +293,12 @@ CREATE TABLE IF NOT EXISTS journal_pages (
 );
 CREATE INDEX IF NOT EXISTS idx_journal_user_section ON journal_pages(user_id, section);
 `);
+// One level of OneNote-style subpages.
+try {
+	db.exec(`ALTER TABLE journal_pages ADD COLUMN parent_id INTEGER`);
+} catch {
+	// column already present
+}
 
 // Settings are per-user; rebuild the table if it predates that.
 const settingsCols = db.prepare(`PRAGMA table_info(settings)`).all() as { name: string }[];
