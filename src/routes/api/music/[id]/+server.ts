@@ -1,9 +1,8 @@
 import { json, error } from '@sveltejs/kit';
-import fs from 'node:fs';
 import path from 'node:path';
 import { db } from '$lib/server/db';
+import { getObject, getObjectRange, deleteObject, addUsage } from '$lib/server/storage';
 
-const MUSIC_DIR = path.resolve('data', 'music');
 const MIME: Record<string, string> = {
 	'.mp3': 'audio/mpeg',
 	'.ogg': 'audio/ogg',
@@ -15,7 +14,7 @@ const MIME: Record<string, string> = {
 
 function getRow(id: string, userId: number) {
 	return db.prepare('SELECT * FROM songs WHERE id = ? AND user_id = ?').get(Number(id), userId) as
-		| { id: number; name: string; file: string | null }
+		| { id: number; name: string; file: string | null; bytes: number | null; user_id: number }
 		| undefined;
 }
 
@@ -23,40 +22,36 @@ function getRow(id: string, userId: number) {
 export async function GET({ params, request, locals }) {
 	const row = getRow(params.id, locals.user!.id);
 	if (!row?.file) error(404, 'No audio file');
-	const filePath = path.join(MUSIC_DIR, path.basename(row.file));
-	if (!fs.existsSync(filePath)) error(404, 'Audio file missing');
-
-	const stat = fs.statSync(filePath);
-	const mime = MIME[path.extname(filePath).toLowerCase()] ?? 'application/octet-stream';
+	const mime = MIME[path.extname(row.file).toLowerCase()] ?? 'application/octet-stream';
 	const range = request.headers.get('range');
 
 	if (range) {
 		const m = range.match(/bytes=(\d+)-(\d*)/);
 		if (m) {
 			const start = Number(m[1]);
-			const end = m[2] ? Math.min(Number(m[2]), stat.size - 1) : stat.size - 1;
-			if (start <= end && start < stat.size) {
-				const buf = Buffer.alloc(end - start + 1);
-				const fd = fs.openSync(filePath, 'r');
-				fs.readSync(fd, buf, 0, buf.length, start);
-				fs.closeSync(fd);
-				return new Response(buf, {
+			const end = m[2] ? Number(m[2]) : null;
+			const res = await getObjectRange(row.file, start, end);
+			if (res && res.buf.length > 0) {
+				const realEnd = start + res.buf.length - 1;
+				return new Response(new Uint8Array(res.buf), {
 					status: 206,
 					headers: {
 						'Content-Type': mime,
-						'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+						'Content-Range': `bytes ${start}-${realEnd}/${res.total}`,
 						'Accept-Ranges': 'bytes',
-						'Content-Length': String(buf.length)
+						'Content-Length': String(res.buf.length)
 					}
 				});
 			}
 		}
 	}
-	return new Response(fs.readFileSync(filePath), {
+	const buf = await getObject(row.file);
+	if (!buf) error(404, 'Audio file missing');
+	return new Response(new Uint8Array(buf), {
 		headers: {
 			'Content-Type': mime,
 			'Accept-Ranges': 'bytes',
-			'Content-Length': String(stat.size),
+			'Content-Length': String(buf.length),
 			'Cache-Control': 'private, max-age=3600'
 		}
 	});
@@ -66,8 +61,8 @@ export async function DELETE({ params, locals }) {
 	const row = getRow(params.id, locals.user!.id);
 	if (row) {
 		if (row.file) {
-			const filePath = path.join(MUSIC_DIR, path.basename(row.file));
-			if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+			await deleteObject(row.file);
+			addUsage(row.user_id, -(row.bytes ?? 0));
 		}
 		db.prepare('DELETE FROM songs WHERE id = ?').run(row.id);
 	}

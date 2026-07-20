@@ -27,15 +27,33 @@ deploys it. Nothing reaches players except through `live`.
    (5e.tools stat blocks, token art, map images, music) lives in `data/`,
    which is gitignored and volume-mounted. Never commit `data/`, never add
    copyrighted content to the repo. This keeps the app distributable.
-2. **Per-user scoping.** Every query on notes/battles/maps/characters/pcs/
-   songs/quick_notes/shop_stock filters by `locals.user!.id`. Monsters and
-   items use the shared-layer pattern `(user_id IS NULL OR user_id = ?)`.
-   The first account created claims all unowned rows (`createUser` in
-   `src/lib/server/auth.ts`).
+   **The shared layer is a mechanism, not a license:** in any distributed
+   build, only redistributable content (Open5e) may be *pre-loaded* shared;
+   personal-use collections (2MT/DG maps, 5e.tools content) enter the
+   shared layer only when an instance's own operator runs the importers on
+   their own instance. Never bake them into an image or seed.
+2. **Per-user scoping + the storage seam.** Every query on notes/battles/
+   characters/pcs/songs/quick_notes/shop_stock/maps filters by
+   `locals.user!.id`. Monsters and items use the shared-layer pattern
+   `(user_id IS NULL OR user_id = ?)` — `user_id NULL` rows are the shared
+   Open5e data. All user FILES (maps, portraits, music, custom tokens) go
+   through `src/lib/server/storage.ts` — never `fs` directly in a route.
+   Keys are `u<userId>/<area>/<id><ext>`; the backend is local disk
+   (`data/store/`) by default or any S3-compatible bucket via
+   `STORAGE_BACKEND=s3` + `S3_*` env. Image uploads are WebP-compressed and
+   every upload passes `assertQuota` (cap: `STORAGE_CAP_MB`, default 4096;
+   per-user override in `users.storage_cap_mb`) and updates
+   `users.storage_bytes` — keep byte accounting correct on every new
+   upload/delete path. The first account created claims all unowned
+   personal rows (`createUser` in `src/lib/server/auth.ts`).
 3. **LLM calls go through one seam** — `src/lib/server/encounter.ts` and
    `src/lib/server/builder.ts` (spawn `claude -p`). Never add LLM calls
    elsewhere; parse output defensively.
-4. **`npm run check` must report 0 errors** before a PR is ready.
+4. **A branch is PR-ready only when** `npm run check` reports 0 errors
+   AND it has a changelog entry: one file per feature branch in
+   `changelog/` (template in `changelog/README.md`). The **Deploy steps**
+   section is the important one — anything the pipeline won't do
+   (migrations, scripts, env vars) must be written there or it gets lost.
 5. **Never blanket-delete from shared tables** (users, monsters, maps…) in
    tests/cleanup — scope deletes to exactly the rows you created.
 6. **Presentation views (`/present/...`) are player-safe**: no HP numbers,
@@ -46,8 +64,8 @@ deploys it. Nothing reaches players except through `live`.
 
 - Svelte 5 runes only (`$state`, `$derived`, `$props`) — no legacy `$:`.
 - `confirmDialog()` from `$lib/confirm.svelte`, never native `confirm()`.
-- Media is served through authenticated `/api/...` endpoints reading `data/`,
-  never from `static/`.
+- Media is served through authenticated `/api/...` endpoints via the storage
+  adapter, never from `static/`.
 - New top-level pages get a `<svelte:head><title>`, a sidebar entry in
   `+layout.svelte`, and empty states.
 - Importer scripts (`scripts/*.mjs`) must stay idempotent (upsert by slug /
@@ -77,8 +95,8 @@ npm run dev                           # http://localhost:5173
   `retag-maps.mjs` (re-run terrain tagging).
 - AI features (Battle Extractor, Sheet Builder) require the `claude` CLI
   installed and logged in on your machine; everything else works without it.
-- Verify before PR: `npm run check` (0 errors) and click through what you
-  changed in the browser.
+- Verify before PR: `npm run check` (0 errors), click through what you
+  changed in the browser, and write the branch's `changelog/` entry.
 
 ### Production (context only — don't touch without Denis)
 

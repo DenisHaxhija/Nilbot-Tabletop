@@ -1,5 +1,12 @@
 <script lang="ts">
 	let { data, form } = $props();
+
+	const usedMb = $derived(data.storage.usedBytes / 1024 / 1024);
+	const capMb = $derived(data.storage.capBytes / 1024 / 1024);
+	const usedPct = $derived(Math.min(100, (data.storage.usedBytes / data.storage.capBytes) * 100));
+	function fmt(mb: number) {
+		return mb >= 1024 ? `${(mb / 1024).toFixed(2)} GB` : `${mb.toFixed(1)} MB`;
+	}
 </script>
 
 <svelte:head><title>Settings · NilBot</title></svelte:head>
@@ -51,6 +58,18 @@
 			<button type="submit">Change password</button>
 			<small>You'll be asked to log in again afterwards.</small>
 		</form>
+	</section>
+
+	<section class="panel">
+		<h2>Storage</h2>
+		<p class="muted">
+			<b>{fmt(usedMb)}</b> of {fmt(capMb)} used — imported maps, portraits, music and custom tokens
+			count toward your space.
+		</p>
+		<div class="bar" role="progressbar" aria-valuenow={Math.round(usedPct)} aria-valuemin={0} aria-valuemax={100}>
+			<div class="fill" class:warn={usedPct > 85} style="width:{usedPct}%"></div>
+		</div>
+		<small>Uploads are compressed automatically. Delete maps or songs you no longer use to free space.</small>
 	</section>
 
 	<section class="panel">
@@ -125,5 +144,22 @@
 	}
 	.muted {
 		color: var(--muted);
+	}
+	.bar {
+		height: 10px;
+		background: var(--panel-2);
+		border: 1px solid var(--border);
+		border-radius: 99px;
+		overflow: hidden;
+		margin: 0.4rem 0 0.6rem;
+	}
+	.fill {
+		height: 100%;
+		background: var(--accent);
+		border-radius: 99px;
+		transition: width 0.3s;
+	}
+	.fill.warn {
+		background: var(--danger);
 	}
 </style>

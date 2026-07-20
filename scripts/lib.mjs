@@ -109,6 +109,33 @@ export function inferTags(name) {
   return tags.join(',');
 }
 
+// Write an imported user file into the per-user store layout
+// (data/store/u<userId>/<area>/<id><ext>) with WebP compression, matching
+// src/lib/server/storage.ts, and count it toward users.storage_bytes.
+// Importers run outside the app, so this targets the local backend only.
+export async function storeUserFile(db, userId, area, id, buf, ext) {
+  if (['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
+    try {
+      const sharp = (await import('sharp')).default;
+      const out = await sharp(buf).rotate().webp({ quality: 82 }).toBuffer();
+      if (out.length < buf.length) {
+        buf = out;
+        ext = '.webp';
+      }
+    } catch {
+      /* keep original */
+    }
+  }
+  const key = `u${userId}/${area}/${id}${ext}`;
+  const dest = path.resolve('data', 'store', key);
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(dest, buf);
+  db.prepare(
+    'UPDATE users SET storage_bytes = COALESCE(storage_bytes, 0) + ? WHERE id = ?'
+  ).run(buf.length, userId);
+  return { key, bytes: buf.length };
+}
+
 // Resolve which user an import belongs to: --user <name> flag, else the only
 // account, else null (shared layer / claimed by the first account created).
 export function resolveImportUser(db, argv) {

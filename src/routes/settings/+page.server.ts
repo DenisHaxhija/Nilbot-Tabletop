@@ -1,12 +1,14 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { getSetting, setSetting } from '$lib/server/db';
 import { changePassword, verifyLogin, deleteSession } from '$lib/server/auth';
+import { quotaFor } from '$lib/server/storage';
 import { COOKIE } from '../../hooks.server';
 
 export function load({ locals }) {
 	const uid = locals.user!.id;
 	return {
 		username: locals.user!.username,
+		storage: quotaFor(uid),
 		settings: {
 			dm_name: getSetting(uid, 'dm_name', locals.user!.username),
 			party_level: Number(getSetting(uid, 'party_level', '3')),
