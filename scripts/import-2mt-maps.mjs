@@ -42,10 +42,10 @@ try {
 } catch {
 	/* column exists */
 }
-// Attach imported maps to an account: --user <name>, else the only account,
-// else unclaimed (the first account created will claim them).
 import { resolveImportUser } from './lib.mjs';
-const importUserId = resolveImportUser(db, process.argv);
+// Collections are SHARED (user_id NULL) by default — one copy for all DMs.
+// Pass --user <name> only to import into a personal layer instead.
+const importUserId = process.argv.includes('--user') ? resolveImportUser(db, process.argv) : null;
 fs.mkdirSync(MAPS_DIR, { recursive: true });
 
 const existing = new Set(

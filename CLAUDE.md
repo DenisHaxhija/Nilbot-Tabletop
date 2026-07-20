@@ -27,11 +27,15 @@ deploys it. Nothing reaches players except through `live`.
    (5e.tools stat blocks, token art, map images, music) lives in `data/`,
    which is gitignored and volume-mounted. Never commit `data/`, never add
    copyrighted content to the repo. This keeps the app distributable.
-2. **Per-user scoping.** Every query on notes/battles/maps/characters/pcs/
-   songs/quick_notes/shop_stock filters by `locals.user!.id`. Monsters and
-   items use the shared-layer pattern `(user_id IS NULL OR user_id = ?)`.
-   The first account created claims all unowned rows (`createUser` in
-   `src/lib/server/auth.ts`).
+2. **Per-user scoping.** Every query on notes/battles/characters/pcs/
+   songs/quick_notes/shop_stock filters by `locals.user!.id`. Monsters,
+   items, and **battle maps** use the shared-layer pattern
+   `(user_id IS NULL OR user_id = ?)` — `user_id NULL` rows are the shared
+   collections (Open5e data, imported map libraries), stored once for all
+   DMs; importers write shared by default. Shared rows are read-only in the
+   UI (tags excepted) — only scripts manage them. World maps and uploads
+   stay per-user. The first account created claims all unowned *personal*
+   rows (`createUser` in `src/lib/server/auth.ts`).
 3. **LLM calls go through one seam** — `src/lib/server/encounter.ts` and
    `src/lib/server/builder.ts` (spawn `claude -p`). Never add LLM calls
    elsewhere; parse output defensively.

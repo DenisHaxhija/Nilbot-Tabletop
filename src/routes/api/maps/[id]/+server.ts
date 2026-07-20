@@ -12,14 +12,23 @@ const MIME: Record<string, string> = {
 	'.gif': 'image/gif'
 };
 
-function getRow(id: string, userId: number) {
+type MapRow = { id: number; name: string; file: string; user_id: number | null };
+
+// Viewing: the shared collection (user_id NULL) or your own maps.
+function getVisible(id: string, userId: number) {
+	return db
+		.prepare('SELECT * FROM maps WHERE id = ? AND (user_id IS NULL OR user_id = ?)')
+		.get(Number(id), userId) as MapRow | undefined;
+}
+// Deleting/renaming: strictly your own — the shared collection is managed by scripts.
+function getOwned(id: string, userId: number) {
 	return db.prepare('SELECT * FROM maps WHERE id = ? AND user_id = ?').get(Number(id), userId) as
-		| { id: number; name: string; file: string }
+		| MapRow
 		| undefined;
 }
 
 export async function GET({ params, locals }) {
-	const row = getRow(params.id, locals.user!.id);
+	const row = getVisible(params.id, locals.user!.id);
 	if (!row) error(404, 'Map not found');
 	const filePath = path.join(MAPS_DIR, path.basename(row.file));
 	if (!fs.existsSync(filePath)) error(404, 'Map file missing');
@@ -32,7 +41,8 @@ export async function GET({ params, locals }) {
 }
 
 export async function PATCH({ params, request, locals }) {
-	const row = getRow(params.id, locals.user!.id);
+	// Tags are communal metadata — editable on shared maps too. Renames only on your own.
+	const row = getVisible(params.id, locals.user!.id);
 	if (!row) error(404, 'Map not found');
 	const body = await request.json();
 	if (typeof body.tags === 'string') {
@@ -43,14 +53,14 @@ export async function PATCH({ params, request, locals }) {
 			.join(',');
 		db.prepare('UPDATE maps SET tags = ? WHERE id = ?').run(tags, row.id);
 	}
-	if (typeof body.name === 'string' && body.name.trim()) {
+	if (typeof body.name === 'string' && body.name.trim() && row.user_id !== null) {
 		db.prepare('UPDATE maps SET name = ? WHERE id = ?').run(body.name.trim(), row.id);
 	}
 	return json({ ok: true });
 }
 
 export async function DELETE({ params, locals }) {
-	const row = getRow(params.id, locals.user!.id);
+	const row = getOwned(params.id, locals.user!.id);
 	if (row) {
 		const filePath = path.join(MAPS_DIR, path.basename(row.file));
 		if (fs.existsSync(filePath)) fs.unlinkSync(filePath);

@@ -26,7 +26,9 @@ try {
 } catch { /* exists */ }
 fs.mkdirSync(MAPS_DIR, { recursive: true });
 
-const importUserId = resolveImportUser(db, process.argv);
+// Collections are SHARED (user_id NULL) by default — one copy for all DMs.
+// Pass --user <name> only to import into a personal layer instead.
+const importUserId = process.argv.includes('--user') ? resolveImportUser(db, process.argv) : null;
 const existing = new Set(
 	db.prepare('SELECT src FROM maps WHERE src IS NOT NULL').all().map((r) => r.src)
 );
