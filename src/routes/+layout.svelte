@@ -46,15 +46,17 @@
 {:else}
 	<div class="shell" class:rail={collapsed}>
 		<aside class="sidebar">
-			<a class="brand" href="/" title="NilBot">
-				<img class="brand-logo" src={goblin} alt="NilBot goblin logo" />
-				{#if !collapsed}NilBot{/if}
-			</a>
-			<button
-				class="collapse"
-				title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-				onclick={toggleSidebar}>{collapsed ? '»' : '«'}</button
-			>
+			<div class="brand-row">
+				<a class="brand" href="/" title="NilBot">
+					<img class="brand-logo" src={goblin} alt="NilBot goblin logo" />
+					{#if !collapsed}NilBot{/if}
+				</a>
+				<button
+					class="collapse"
+					title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+					onclick={toggleSidebar}>{collapsed ? '»' : '«'}</button
+				>
+			</div>
 			<nav>
 				{#each links as l (l.href)}
 					<a href={l.href} title={l.label} class:active={page.url.pathname.startsWith(l.href)}>
@@ -174,19 +176,24 @@
 		padding: 0.45rem 0;
 		width: 100%;
 	}
+	.brand-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.3rem;
+	}
+	.shell.rail .brand-row {
+		flex-direction: column;
+		gap: 0.5rem;
+	}
 	.collapse {
 		background: transparent;
 		border: 1px solid var(--border);
 		border-radius: 6px;
 		color: var(--muted);
 		font-size: 0.85rem;
-		padding: 0.1rem 0.5rem;
-		align-self: flex-end;
-		margin: -0.7rem 0.2rem -0.5rem 0;
-	}
-	.shell.rail .collapse {
-		align-self: center;
-		margin: -0.7rem 0 -0.5rem;
+		padding: 0.1rem 0.45rem;
+		flex-shrink: 0;
 	}
 	.collapse:hover {
 		color: var(--text);
