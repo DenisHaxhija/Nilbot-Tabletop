@@ -156,6 +156,31 @@ try {
 } catch {
 	// column already present
 }
+// Per-user storage accounting (see src/lib/server/storage.ts).
+try {
+	db.exec(`ALTER TABLE users ADD COLUMN storage_bytes INTEGER NOT NULL DEFAULT 0`);
+} catch {
+	// column already present
+}
+try {
+	db.exec(`ALTER TABLE users ADD COLUMN storage_cap_mb INTEGER`);
+} catch {
+	// column already present
+}
+// Size of each stored user file, so deletes can decrement usage on any backend.
+for (const [table, col] of [
+	['maps', 'bytes'],
+	['pcs', 'bytes'],
+	['characters', 'bytes'],
+	['songs', 'bytes'],
+	['monsters', 'token_bytes']
+] as const) {
+	try {
+		db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} INTEGER`);
+	} catch {
+		// column already present
+	}
+}
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS char_groups (

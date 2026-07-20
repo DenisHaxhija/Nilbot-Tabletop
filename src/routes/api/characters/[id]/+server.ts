@@ -1,37 +1,20 @@
 import { json, error } from '@sveltejs/kit';
-import fs from 'node:fs';
-import path from 'node:path';
 import { db } from '$lib/server/db';
-
-const CHARS_DIR = path.resolve('data', 'characters');
-const ALLOWED = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
-const MIME: Record<string, string> = {
-	'.png': 'image/png',
-	'.jpg': 'image/jpeg',
-	'.jpeg': 'image/jpeg',
-	'.webp': 'image/webp',
-	'.gif': 'image/gif'
-};
+import { imageResponse, storeUserImage, deleteObject, addUsage, QuotaError } from '$lib/server/storage';
 
 function getRow(id: string, userId: number) {
 	return db
 		.prepare('SELECT * FROM characters WHERE id = ? AND user_id = ?')
 		.get(Number(id), userId) as
-		| { id: number; name: string; file: string | null }
+		| { id: number; name: string; file: string | null; bytes: number | null; user_id: number }
 		| undefined;
 }
 
 export async function GET({ params, locals }) {
 	const row = getRow(params.id, locals.user!.id);
-	if (!row?.file) error(404, 'No portrait');
-	const filePath = path.join(CHARS_DIR, path.basename(row.file));
-	if (!fs.existsSync(filePath)) error(404, 'Portrait file missing');
-	return new Response(fs.readFileSync(filePath), {
-		headers: {
-			'Content-Type': MIME[path.extname(row.file).toLowerCase()] ?? 'application/octet-stream',
-			'Cache-Control': 'public, max-age=3600'
-		}
-	});
+	const res = await imageResponse(row?.file);
+	if (!res) error(404, 'No portrait');
+	return res;
 }
 
 export async function POST({ params, request, locals }) {
@@ -54,16 +37,21 @@ export async function POST({ params, request, locals }) {
 
 	const file = form.get('file');
 	if (file instanceof File && file.size > 0) {
-		const ext = path.extname(file.name).toLowerCase();
-		if (ALLOWED.includes(ext)) {
-			if (row.file) {
-				const old = path.join(CHARS_DIR, path.basename(row.file));
-				if (fs.existsSync(old)) fs.unlinkSync(old);
+		try {
+			const stored = await storeUserImage(locals.user!.id, 'characters', row.id, file, {
+				key: row.file,
+				bytes: row.bytes
+			});
+			if (stored) {
+				db.prepare('UPDATE characters SET file = ?, bytes = ? WHERE id = ?').run(
+					stored.key,
+					stored.bytes,
+					row.id
+				);
 			}
-			fs.mkdirSync(CHARS_DIR, { recursive: true });
-			const filename = `${row.id}${ext}`;
-			fs.writeFileSync(path.join(CHARS_DIR, filename), Buffer.from(await file.arrayBuffer()));
-			db.prepare('UPDATE characters SET file = ? WHERE id = ?').run(filename, row.id);
+		} catch (e) {
+			if (e instanceof QuotaError) return json({ error: e.message }, { status: 413 });
+			throw e;
 		}
 	}
 	return json({ ok: true });
@@ -73,8 +61,8 @@ export async function DELETE({ params, locals }) {
 	const row = getRow(params.id, locals.user!.id);
 	if (row) {
 		if (row.file) {
-			const filePath = path.join(CHARS_DIR, path.basename(row.file));
-			if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+			await deleteObject(row.file);
+			addUsage(row.user_id, -(row.bytes ?? 0));
 		}
 		db.prepare('DELETE FROM characters WHERE id = ?').run(row.id);
 	}

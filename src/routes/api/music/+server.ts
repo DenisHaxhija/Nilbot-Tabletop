@@ -1,12 +1,12 @@
 import { json } from '@sveltejs/kit';
-import fs from 'node:fs';
 import path from 'node:path';
 import { db } from '$lib/server/db';
+import { putObject, assertQuota, addUsage, QuotaError } from '$lib/server/storage';
 
-const MUSIC_DIR = path.resolve('data', 'music');
 const ALLOWED = ['.mp3', '.ogg', '.wav', '.m4a', '.flac', '.webm'];
 
 export async function POST({ request, locals }) {
+	const uid = locals.user!.id;
 	const form = await request.formData();
 	const name = String(form.get('name') ?? '').trim();
 	const grp = String(form.get('grp') ?? '').trim();
@@ -20,20 +20,35 @@ export async function POST({ request, locals }) {
 		return json({ error: 'Links must start with http(s)://' }, { status: 400 });
 	}
 
-	const info = db
-		.prepare('INSERT INTO songs (user_id, name, grp, url) VALUES (?, ?, ?, ?)')
-		.run(locals.user!.id, name, grp, url || null);
-
+	let buf: Buffer | null = null;
+	let ext = '';
 	if (file instanceof File && file.size > 0) {
-		const ext = path.extname(file.name).toLowerCase();
+		ext = path.extname(file.name).toLowerCase();
 		if (!ALLOWED.includes(ext)) {
-			db.prepare('DELETE FROM songs WHERE id = ?').run(info.lastInsertRowid);
 			return json({ error: `Unsupported audio type ${ext}` }, { status: 400 });
 		}
-		fs.mkdirSync(MUSIC_DIR, { recursive: true });
-		const filename = `${info.lastInsertRowid}${ext}`;
-		fs.writeFileSync(path.join(MUSIC_DIR, filename), Buffer.from(await file.arrayBuffer()));
-		db.prepare('UPDATE songs SET file = ? WHERE id = ?').run(filename, info.lastInsertRowid);
+		buf = Buffer.from(await file.arrayBuffer());
+		try {
+			assertQuota(uid, buf.length);
+		} catch (e) {
+			if (e instanceof QuotaError) return json({ error: e.message }, { status: 413 });
+			throw e;
+		}
+	}
+
+	const info = db
+		.prepare('INSERT INTO songs (user_id, name, grp, url) VALUES (?, ?, ?, ?)')
+		.run(uid, name, grp, url || null);
+
+	if (buf) {
+		const key = `u${uid}/music/${info.lastInsertRowid}${ext}`;
+		await putObject(key, buf);
+		db.prepare('UPDATE songs SET file = ?, bytes = ? WHERE id = ?').run(
+			key,
+			buf.length,
+			info.lastInsertRowid
+		);
+		addUsage(uid, buf.length);
 	}
 	return json({ ok: true, id: info.lastInsertRowid });
 }

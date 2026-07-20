@@ -118,11 +118,7 @@
 			<img src="/api/maps/{m.id}" alt={m.name} loading="lazy" />
 			<div class="card-foot">
 				<span class="name" title={m.name}>{m.name}</span>
-				{#if m.shared}
-					<span class="shared-chip" title="Part of the shared collection — visible to every DM">shared</span>
-				{:else}
-					<button class="del" title="Delete" onclick={() => remove(m.id, m.name)}>✕</button>
-				{/if}
+				<button class="del" title="Delete" onclick={() => remove(m.id, m.name)}>✕</button>
 			</div>
 			{#if editingId === m.id}
 				<div class="tag-edit">
@@ -250,15 +246,6 @@
 	}
 	.del:hover {
 		color: var(--danger);
-	}
-	.shared-chip {
-		font-size: 0.68rem;
-		text-transform: uppercase;
-		color: var(--muted);
-		border: 1px solid var(--border);
-		border-radius: 99px;
-		padding: 0.05rem 0.4rem;
-		white-space: nowrap;
 	}
 	.tags {
 		display: flex;

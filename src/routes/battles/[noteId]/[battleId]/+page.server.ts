@@ -20,12 +20,7 @@ export function load({ params, locals }) {
 	// Existing map layout (only if it's the imported-image kind and the map still exists)
 	let layout = battle.map ? JSON.parse(battle.map) : null;
 	if (layout && !layout.mapId) layout = null; // discard old generated-map format
-	if (
-		layout &&
-		!db
-			.prepare('SELECT id FROM maps WHERE id = ? AND (user_id IS NULL OR user_id = ?)')
-			.get(layout.mapId, uid)
-	)
+	if (layout && !db.prepare('SELECT id FROM maps WHERE id = ? AND user_id = ?').get(layout.mapId, uid))
 		layout = null;
 
 	const tokenImg = (slug: string | null | undefined) => {
@@ -141,7 +136,7 @@ export function load({ params, locals }) {
 
 	const maps = db
 		.prepare(
-			`SELECT id, name, tags FROM maps WHERE (user_id IS NULL OR user_id = ?) AND kind = 'battle' ORDER BY created_at DESC`
+			`SELECT id, name, tags FROM maps WHERE user_id = ? AND kind = 'battle' ORDER BY created_at DESC`
 		)
 		.all(uid) as { id: number; name: string; tags: string }[];
 

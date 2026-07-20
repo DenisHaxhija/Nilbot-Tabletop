@@ -1,5 +1,5 @@
 // Imports the free battle-map collection from 2-Minute Tabletop into the
-// NilBot map library (data/maps + the maps table).
+// NilBot map library (the importing user's storage + the maps table).
 //
 // License: 2-Minute Tabletop releases its content under CC BY-NC 4.0
 // (https://2minutetabletop.com/faq/license-and-attribution/). Personal,
@@ -8,13 +8,11 @@
 //
 //   node scripts/import-2mt-maps.mjs
 import Database from 'better-sqlite3';
-import fs from 'node:fs';
 import path from 'node:path';
 
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) NilBot-personal-map-importer';
 const API = 'https://2minutetabletop.com/wp-json/wp/v2/product';
 const FREE_CAT = 26;
-const MAPS_DIR = path.resolve('data', 'maps');
 const DELAY_MS = 250;
 
 // Products that are asset/token packs rather than battle maps.
@@ -42,11 +40,19 @@ try {
 } catch {
 	/* column exists */
 }
-import { resolveImportUser } from './lib.mjs';
-// Collections are SHARED (user_id NULL) by default — one copy for all DMs.
-// Pass --user <name> only to import into a personal layer instead.
-const importUserId = process.argv.includes('--user') ? resolveImportUser(db, process.argv) : null;
-fs.mkdirSync(MAPS_DIR, { recursive: true });
+try {
+	db.exec(`ALTER TABLE maps ADD COLUMN bytes INTEGER`);
+} catch {
+	/* column exists */
+}
+// Imported maps go into the importing user's own storage (and count toward
+// their quota): --user <name>, or the only existing account.
+import { resolveImportUser, storeUserFile } from './lib.mjs';
+const importUserId = resolveImportUser(db, process.argv);
+if (!importUserId) {
+	console.error('Create an account in the app first (or pass --user <name>) — imports are per-user.');
+	process.exit(1);
+}
 
 const existing = new Set(
 	db.prepare('SELECT src FROM maps WHERE src IS NOT NULL').all().map((r) => r.src)
@@ -89,10 +95,9 @@ console.log(`${mapProducts.length} look like battle maps (skipping asset/token p
 
 // 2. For each product: grab the featured full-res image
 const insert = db.prepare(
-	`INSERT INTO maps (name, file, src, user_id) VALUES (?, 'pending', ?, ${importUserId ?? 'NULL'})`
+	`INSERT INTO maps (name, file, src, user_id) VALUES (?, 'pending', ?, ${importUserId})`
 );
-const setFile = db.prepare(`UPDATE maps SET file = ? WHERE id = ?`);
-const remove = db.prepare(`DELETE FROM maps WHERE id = ?`);
+const setFile = db.prepare(`UPDATE maps SET file = ?, bytes = ? WHERE id = ?`);
 
 let imported = 0;
 let skipped = 0;
@@ -144,9 +149,8 @@ for (const [i, p] of mapProducts.entries()) {
 		const name = `${title}${grid ? ` (${grid})` : ''} — 2MT`;
 
 		const info = insert.run(name, p.link);
-		const filename = `${info.lastInsertRowid}${ext}`;
-		fs.writeFileSync(path.join(MAPS_DIR, filename), buf);
-		setFile.run(filename, info.lastInsertRowid);
+		const stored = await storeUserFile(db, importUserId, 'maps', info.lastInsertRowid, buf, ext);
+		setFile.run(stored.key, stored.bytes, info.lastInsertRowid);
 		imported++;
 		if (imported % 25 === 0) console.log(`  ${imported} imported (${i + 1}/${mapProducts.length} checked)…`);
 	} catch (e) {

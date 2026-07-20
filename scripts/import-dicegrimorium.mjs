@@ -4,13 +4,11 @@
 //
 //   node scripts/import-dicegrimorium.mjs [--user <name>]
 import Database from 'better-sqlite3';
-import fs from 'node:fs';
 import path from 'node:path';
-import { inferTags, resolveImportUser } from './lib.mjs';
+import { inferTags, resolveImportUser, storeUserFile } from './lib.mjs';
 
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) NilBot-personal-map-importer';
 const API = 'https://dicegrimorium.com/wp-json/wp/v2/posts';
-const MAPS_DIR = path.resolve('data', 'maps');
 const DELAY_MS = 300;
 
 const db = new Database(path.join('data', 'nilbot.db'));
@@ -24,11 +22,15 @@ try {
 try {
 	db.exec(`ALTER TABLE maps ADD COLUMN tags TEXT NOT NULL DEFAULT ''`);
 } catch { /* exists */ }
-fs.mkdirSync(MAPS_DIR, { recursive: true });
+try {
+	db.exec(`ALTER TABLE maps ADD COLUMN bytes INTEGER`);
+} catch { /* exists */ }
 
-// Collections are SHARED (user_id NULL) by default — one copy for all DMs.
-// Pass --user <name> only to import into a personal layer instead.
-const importUserId = process.argv.includes('--user') ? resolveImportUser(db, process.argv) : null;
+const importUserId = resolveImportUser(db, process.argv);
+if (!importUserId) {
+	console.error('Create an account in the app first (or pass --user <name>) — imports are per-user.');
+	process.exit(1);
+}
 const existing = new Set(
 	db.prepare('SELECT src FROM maps WHERE src IS NOT NULL').all().map((r) => r.src)
 );
@@ -37,9 +39,9 @@ const decode = (s) =>
 	s.replace(/&#0?38;|&amp;/g, '&').replace(/&#8217;/g, "'").replace(/&#8211;/g, '–');
 
 const insert = db.prepare(
-	`INSERT INTO maps (name, file, src, tags, user_id) VALUES (?, 'pending', ?, ?, ${importUserId ?? 'NULL'})`
+	`INSERT INTO maps (name, file, src, tags, user_id) VALUES (?, 'pending', ?, ?, ${importUserId})`
 );
-const setFile = db.prepare(`UPDATE maps SET file = ? WHERE id = ?`);
+const setFile = db.prepare(`UPDATE maps SET file = ?, bytes = ? WHERE id = ?`);
 
 let imported = 0;
 let skipped = 0;
@@ -95,9 +97,8 @@ for (let page = 1; ; page++) {
 			const ext = path.extname(new URL(base).pathname).toLowerCase() || '.jpg';
 
 			const info = insert.run(name, p.link, inferTags(title));
-			const filename = `${info.lastInsertRowid}${ext}`;
-			fs.writeFileSync(path.join(MAPS_DIR, filename), buf);
-			setFile.run(filename, info.lastInsertRowid);
+			const stored = await storeUserFile(db, importUserId, 'maps', info.lastInsertRowid, buf, ext);
+			setFile.run(stored.key, stored.bytes, info.lastInsertRowid);
 			imported++;
 			if (imported % 25 === 0) console.log(`  ${imported} imported…`);
 		} catch (e) {

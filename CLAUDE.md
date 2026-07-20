@@ -32,15 +32,20 @@ deploys it. Nothing reaches players except through `live`.
    personal-use collections (2MT/DG maps, 5e.tools content) enter the
    shared layer only when an instance's own operator runs the importers on
    their own instance. Never bake them into an image or seed.
-2. **Per-user scoping.** Every query on notes/battles/characters/pcs/
-   songs/quick_notes/shop_stock filters by `locals.user!.id`. Monsters,
-   items, and **battle maps** use the shared-layer pattern
+2. **Per-user scoping + the storage seam.** Every query on notes/battles/
+   characters/pcs/songs/quick_notes/shop_stock/maps filters by
+   `locals.user!.id`. Monsters and items use the shared-layer pattern
    `(user_id IS NULL OR user_id = ?)` — `user_id NULL` rows are the shared
-   collections (Open5e data, imported map libraries), stored once for all
-   DMs; importers write shared by default. Shared rows are read-only in the
-   UI (tags excepted) — only scripts manage them. World maps and uploads
-   stay per-user. The first account created claims all unowned *personal*
-   rows (`createUser` in `src/lib/server/auth.ts`).
+   Open5e data. All user FILES (maps, portraits, music, custom tokens) go
+   through `src/lib/server/storage.ts` — never `fs` directly in a route.
+   Keys are `u<userId>/<area>/<id><ext>`; the backend is local disk
+   (`data/store/`) by default or any S3-compatible bucket via
+   `STORAGE_BACKEND=s3` + `S3_*` env. Image uploads are WebP-compressed and
+   every upload passes `assertQuota` (cap: `STORAGE_CAP_MB`, default 4096;
+   per-user override in `users.storage_cap_mb`) and updates
+   `users.storage_bytes` — keep byte accounting correct on every new
+   upload/delete path. The first account created claims all unowned
+   personal rows (`createUser` in `src/lib/server/auth.ts`).
 3. **LLM calls go through one seam** — `src/lib/server/encounter.ts` and
    `src/lib/server/builder.ts` (spawn `claude -p`). Never add LLM calls
    elsewhere; parse output defensively.
@@ -55,8 +60,8 @@ deploys it. Nothing reaches players except through `live`.
 
 - Svelte 5 runes only (`$state`, `$derived`, `$props`) — no legacy `$:`.
 - `confirmDialog()` from `$lib/confirm.svelte`, never native `confirm()`.
-- Media is served through authenticated `/api/...` endpoints reading `data/`,
-  never from `static/`.
+- Media is served through authenticated `/api/...` endpoints via the storage
+  adapter, never from `static/`.
 - New top-level pages get a `<svelte:head><title>`, a sidebar entry in
   `+layout.svelte`, and empty states.
 - Importer scripts (`scripts/*.mjs`) must stay idempotent (upsert by slug /

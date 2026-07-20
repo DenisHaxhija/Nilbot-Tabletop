@@ -1,11 +1,7 @@
 import { json } from '@sveltejs/kit';
-import fs from 'node:fs';
-import path from 'node:path';
 import { db } from '$lib/server/db';
 import { XP_BY_CR, parseCr } from '$lib/xp';
-
-const TOKENS_DIR = path.resolve('data', 'tokens');
-const ALLOWED = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
+import { storeUserImage, QuotaError } from '$lib/server/storage';
 
 export async function POST({ request, locals }) {
 	const uid = locals.user!.id;
@@ -49,12 +45,18 @@ export async function POST({ request, locals }) {
 
 	const file = form.get('file');
 	if (file instanceof File && file.size > 0) {
-		const ext = path.extname(file.name).toLowerCase();
-		if (ALLOWED.includes(ext)) {
-			fs.mkdirSync(TOKENS_DIR, { recursive: true });
-			const filename = `${info.lastInsertRowid}${ext}`;
-			fs.writeFileSync(path.join(TOKENS_DIR, filename), Buffer.from(await file.arrayBuffer()));
-			db.prepare('UPDATE monsters SET token = ? WHERE id = ?').run(filename, info.lastInsertRowid);
+		try {
+			const stored = await storeUserImage(uid, 'tokens', info.lastInsertRowid, file);
+			if (stored) {
+				db.prepare('UPDATE monsters SET token = ?, token_bytes = ? WHERE id = ?').run(
+					stored.key,
+					stored.bytes,
+					info.lastInsertRowid
+				);
+			}
+		} catch (e) {
+			if (e instanceof QuotaError) return json({ error: e.message, slug }, { status: 413 });
+			throw e;
 		}
 	}
 
