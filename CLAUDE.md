@@ -1,105 +1,89 @@
-# NilBot — project context for Claude
+# NilBot — read this before touching the repo
 
-NilBot is a self-hosted D&D DM workbench: session notes with AI battle extraction,
-a 3,200-monster bestiary, battle maps with tokens/initiative/HP, live TV
-presentation views, character galleries, a magic-item shop, world maps, and music
-playlists. Single Node process, SQLite, multi-account.
+NilBot is a self-hosted D&D DM workbench (SvelteKit + Svelte 5 runes,
+better-sqlite3, TypeScript). This file covers the two things every
+contributor (and their Claude) must know: **repo rules** and **running locally**.
 
-**Stack:** SvelteKit (Svelte 5 runes syntax) · better-sqlite3 · TypeScript.
-No ORM, no CSS framework — hand-rolled dark theme in `+layout.svelte` (green
-accent `--accent`, ember `--accent-2`, serif headings, Cinzel for the brand).
+---
 
-## Hard rules — do not break these
+## 1. Repo rules
 
-1. **Licensing / data layers.** The repo and Docker image must contain ONLY
-   freely-licensed data (Open5e SRD/CC monsters & items, generated content).
-   Everything a user imports (5e.tools stat blocks, token art, map images,
-   music) lives in `data/` — which is gitignored and volume-mounted, never
-   bundled. Never commit `data/`, never add copyrighted content to the repo.
+### Branch model
+
+| Branch | Purpose | Rules |
+|---|---|---|
+| `main` | Integration — where features land | PRs preferred; keep it building |
+| `live` | **Production. Protected.** | **Never push directly.** Only merged into via PR from `main`. Every merge auto-deploys to the production server via GitHub Actions (`.github/workflows/deploy.yml`) |
+| `feat/*` | Your work | Branch from `main`, test locally, PR into `main` |
+
+The flow: **build on a feature branch → test locally → PR into `main` →
+when a feature is ready for the table, PR `main` → `live`** — the pipeline
+deploys it. Nothing reaches players except through `live`.
+
+### Hard rules (breaking these breaks the project)
+
+1. **Licensing / data layers.** The repo and Docker image contain ONLY
+   freely-licensed data (Open5e SRD/CC). Everything a user imports
+   (5e.tools stat blocks, token art, map images, music) lives in `data/`,
+   which is gitignored and volume-mounted. Never commit `data/`, never add
+   copyrighted content to the repo. This keeps the app distributable.
 2. **Per-user scoping.** Every query on notes/battles/maps/characters/pcs/
-   songs/quick_notes/shop_stock MUST filter by `locals.user!.id`. Monsters and
-   items use the shared-layer pattern: `(user_id IS NULL OR user_id = ?)` —
-   NULL = shared base layer visible to all accounts. The FIRST account created
-   claims all unowned rows (see `createUser` in `src/lib/server/auth.ts`).
-3. **LLM calls go through one seam.** All AI features call the `claude` CLI
-   (`claude -p ... --output-format json`) via `src/lib/server/encounter.ts` and
-   `src/lib/server/builder.ts`. Never scatter LLM calls elsewhere; the seam
-   exists so we can swap CLI → API key someday. LLM output parsing must be
-   defensive (strip fences, slice to outer braces/brackets).
-4. **Never blanket-delete from shared tables** (users, monsters, maps…) in
-   tests or cleanup — scope deletes to exactly the rows you created.
-5. **Typecheck is the gate:** `npm run check` must report 0 errors before any
-   change is considered done.
+   songs/quick_notes/shop_stock filters by `locals.user!.id`. Monsters and
+   items use the shared-layer pattern `(user_id IS NULL OR user_id = ?)`.
+   The first account created claims all unowned rows (`createUser` in
+   `src/lib/server/auth.ts`).
+3. **LLM calls go through one seam** — `src/lib/server/encounter.ts` and
+   `src/lib/server/builder.ts` (spawn `claude -p`). Never add LLM calls
+   elsewhere; parse output defensively.
+4. **`npm run check` must report 0 errors** before a PR is ready.
+5. **Never blanket-delete from shared tables** (users, monsters, maps…) in
+   tests/cleanup — scope deletes to exactly the rows you created.
+6. **Presentation views (`/present/...`) are player-safe**: no HP numbers,
+   no DM notes, no stat blocks. They use the bare layout and live-update via
+   SSE endpoints.
 
-## Architecture map
+### Conventions
 
-- `src/hooks.server.ts` — auth gate: session cookie → `locals.user`; all pages
-  redirect to /login, all /api/* return 401 when unauthenticated.
-- `src/lib/server/db.ts` — SQLite schema (idempotent CREATE/ALTER migrations at
-  import time), monster search (FTS5), settings helpers. Single DB at
-  `data/nilbot.db`, WAL mode.
-- `src/lib/server/auth.ts` — scrypt passwords, 30-day session tokens,
-  first-account-claims-all.
-- `src/lib/server/encounter.ts` — battle extraction from notes + DMG XP math.
-- `src/lib/server/builder.ts` — AI custom stat-block generation.
-- `src/lib/tags.ts` + `scripts/lib.mjs` — terrain-tag vocabulary (KEEP IN SYNC,
-  word-boundary matching).
-- Routes: `notes` (sessions + quick notes), `battles/[noteId]/[battleId]`
-  (map builder: tokens, drag, initiative/HP tracker, edit mode),
-  `present/*` (player-facing TV views — bare layout, no DM data),
-  `bestiary`, `builder` (sheet builder), `characters/[group]`, `maps`,
-  `worldmaps`, `shop`, `music`, `settings`, `login`.
-- Live sync: TV views subscribe to SSE endpoints (`/api/battles/[id]/stream`,
-  `/api/canvas/stream`, `/api/shop/stream`) — server polls SQLite every
-  250–500ms and pushes on change. DM-side edits persist via PUT; drags stream
-  mid-gesture (throttled ~300ms).
-- `scripts/*.mjs` — data importers (Open5e monsters/items, 2-Minute Tabletop +
-  Dice Grimorium maps, 5e.tools stat blocks/tokens, retagger). Importers take
-  `--user <name>` when multiple accounts exist; they must stay idempotent
-  (upsert by slug / skip by src).
+- Svelte 5 runes only (`$state`, `$derived`, `$props`) — no legacy `$:`.
+- `confirmDialog()` from `$lib/confirm.svelte`, never native `confirm()`.
+- Media is served through authenticated `/api/...` endpoints reading `data/`,
+  never from `static/`.
+- New top-level pages get a `<svelte:head><title>`, a sidebar entry in
+  `+layout.svelte`, and empty states.
+- Importer scripts (`scripts/*.mjs`) must stay idempotent (upsert by slug /
+  skip by src) and take `--user <name>` when content belongs to an account.
 
-## Conventions
+---
 
-- Svelte 5 runes only (`$state`, `$derived`, `$props`); no legacy `$:` syntax.
-- Use `confirmDialog()` from `$lib/confirm.svelte` — never native `confirm()`.
-- Presentation (`/present/...`) pages are player-safe: no HP numbers, no DM
-  notes, no stat blocks; bare layout (see the `bare` check in `+layout.svelte`).
-- Images/audio are served through authenticated API endpoints reading from
-  `data/` — never from `static/`.
-- Every destructive UI action gets a confirm dialog; every list gets an empty
-  state; every new page gets a `<svelte:head><title>` and a sidebar entry if
-  it's a top-level tab.
-
-## Dev setup (fresh clone)
+## 2. Running locally
 
 ```sh
-nvm use 22 || nvm install 22
+# once
+nvm install 22 && nvm use 22
 npm install
 npm approve-scripts better-sqlite3 && npm rebuild better-sqlite3  # native module
 node scripts/import-open5e.mjs        # shared bestiary (~3,200 monsters)
 node scripts/import-open5e-items.mjs  # shared item catalog (~1,600 items)
-npm run dev                           # first visit creates YOUR account
+
+# every day
+npm run dev                           # http://localhost:5173
 ```
 
-Optional local data (personal use only): `import-2mt-maps.mjs`,
-`import-dicegrimorium.mjs` (battle maps), `import-5etools.mjs <file>` (your
-stat blocks), `import-5etools-tokens.mjs <tokens dir>` (token art).
-AI features need the `claude` CLI installed and logged in.
+- First visit shows account creation — **your first local account claims all
+  local data**. Your local `data/` is yours alone; production has its own.
+- Optional personal-use imports: `import-2mt-maps.mjs` and
+  `import-dicegrimorium.mjs` (battle maps), `import-5etools.mjs <file>`
+  (stat blocks you own), `import-5etools-tokens.mjs <dir>` (token art),
+  `retag-maps.mjs` (re-run terrain tagging).
+- AI features (Battle Extractor, Sheet Builder) require the `claude` CLI
+  installed and logged in on your machine; everything else works without it.
+- Verify before PR: `npm run check` (0 errors) and click through what you
+  changed in the browser.
 
-## Production
+### Production (context only — don't touch without Denis)
 
-There is a live deployment (Docker + Caddy + systemd on a small cloud server,
-domain `nilbot.duckdns.org`). Deploy access, server details, and upgrade
-procedure are Denis's to share — coordinate with him before touching prod.
-Upgrade flow: rsync source → `docker compose build` → `systemctl restart nilbot`.
-The production `data/` volume is the single source of truth for user data —
-never overwrite it with a local copy.
-
-## Roadmap / open threads (check with Denis before starting)
-
-- OneNote campaign import (pipeline exists: `scripts/fetch-onenote.mjs` +
-  `scripts/import-onenote.mjs`; blocked on Microsoft login, currently parked).
-- Possible future: commercialization (~$5 one-time) — the licensing rules above
-  exist so the app stays sellable; keep it that way.
-- Sub-100ms battle sync (SSE → WebSockets) if polling ever feels laggy.
-- Bought domain to replace DuckDNS (Caddy config is the only change).
+`live` deploys automatically to the production server (Docker + Caddy +
+systemd, domain nilbot.duckdns.org). Server access and secrets are handled
+by Denis outside the repo. The production `data/` volume is the single
+source of truth for real campaign data — no script or pipeline may overwrite
+or delete it.

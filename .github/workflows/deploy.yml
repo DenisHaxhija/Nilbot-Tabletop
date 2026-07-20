@@ -1,0 +1,35 @@
+name: Deploy to production
+
+on:
+  push:
+    branches: [live]
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          echo "${{ secrets.PROD_HOST_KEY }}" > ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: |
+          ssh -i ~/.ssh/deploy root@${{ secrets.PROD_HOST }} '
+            set -euo pipefail
+            cd /opt/nilbot
+            git fetch origin live
+            git reset --hard origin/live
+            docker compose build
+            systemctl restart nilbot
+            sleep 20
+            systemctl is-active nilbot
+            curl -sf -o /dev/null http://localhost:3000/login
+            echo "Deploy OK: $(git rev-parse --short HEAD)"
+          '
