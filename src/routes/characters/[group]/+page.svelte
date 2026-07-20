@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { confirmDialog } from '$lib/confirm.svelte';
+	import StatBlock from '$lib/components/StatBlock.svelte';
 	let { data } = $props();
 
 	let editing = $state<null | { id: number | null }>(null);
@@ -9,9 +10,51 @@
 	let fDesc = $state('');
 	let fNotes = $state('');
 	let fFolder = $state('');
+	let fSheetSlug = $state('');
+	let fSheetName = $state('');
 	let fileInput: HTMLInputElement | undefined = $state();
 	let errorMsg = $state('');
 	let saving = $state(false);
+
+	// Stat-sheet picker (searches the bestiary incl. Custom sheets).
+	let sheetQuery = $state('');
+	let sheetResults = $state<any[]>([]);
+	let searchTimer: ReturnType<typeof setTimeout>;
+	function onSheetQuery() {
+		clearTimeout(searchTimer);
+		searchTimer = setTimeout(async () => {
+			const q = sheetQuery.trim();
+			if (!q) {
+				sheetResults = [];
+				return;
+			}
+			const res = await fetch(`/api/monsters/search?q=${encodeURIComponent(q)}`);
+			sheetResults = (await res.json()).results;
+		}, 200);
+	}
+	function pickSheet(r: any) {
+		fSheetSlug = r.slug;
+		fSheetName = r.name;
+		sheetQuery = '';
+		sheetResults = [];
+	}
+	function unlinkSheet() {
+		fSheetSlug = '';
+		fSheetName = '';
+	}
+
+	// Slide-over showing a character's linked stat sheet.
+	let sheetView = $state<null | { meta: any; monster: any }>(null);
+	let sheetViewLoading = $state(false);
+	async function viewSheet(slug: string) {
+		sheetViewLoading = true;
+		try {
+			const res = await fetch(`/api/monster/${encodeURIComponent(slug)}`);
+			if (res.ok) sheetView = await res.json();
+		} finally {
+			sheetViewLoading = false;
+		}
+	}
 
 	function openNew() {
 		editing = { id: null };
@@ -20,6 +63,8 @@
 		fDesc = '';
 		fNotes = '';
 		fFolder = data.group;
+		fSheetSlug = '';
+		fSheetName = '';
 		errorMsg = '';
 	}
 	function openEdit(c: any) {
@@ -29,10 +74,15 @@
 		fDesc = c.description;
 		fNotes = c.notes;
 		fFolder = c.folder;
+		fSheetSlug = c.sheetSlug;
+		fSheetName = c.sheetName ?? '';
 		errorMsg = '';
 	}
 	function close() {
 		editing = null;
+		sheetView = null;
+		sheetQuery = '';
+		sheetResults = [];
 		if (fileInput) fileInput.value = '';
 	}
 
@@ -47,6 +97,7 @@
 			form.set('description', fDesc);
 			form.set('notes', fNotes);
 			form.set('folder', fFolder);
+			form.set('sheet_slug', fSheetSlug);
 			const file = fileInput?.files?.[0];
 			if (file) form.set('file', file);
 			const url = editing?.id ? `/api/characters/${editing.id}` : '/api/characters';
@@ -122,6 +173,13 @@
 			</div>
 			<div class="actions">
 				<a class="present" href="/present/char/{c.id}" target="_blank">▶ Present</a>
+				{#if c.sheetSlug}
+					<button
+						class="sheet-btn"
+						onclick={() => viewSheet(c.sheetSlug)}
+						title="Stat sheet: {c.sheetName ?? c.sheetSlug}">📜</button
+					>
+				{/if}
 				<button onclick={() => openEdit(c)} title="Edit">✎</button>
 				<button class="del" onclick={() => remove(c)} title="Delete">✕</button>
 			</div>
@@ -161,6 +219,34 @@
 				DM notes <small class="note">(never shown)</small>
 				<textarea bind:value={fNotes} rows="4"></textarea>
 			</label>
+			<div class="sheet-link">
+				<span class="lbl">Stat sheet <small class="note">(from the bestiary, DM-only)</small></span>
+				{#if fSheetSlug}
+					<div class="linked">
+						<span>📜 {fSheetName || fSheetSlug}</span>
+						<button type="button" class="unlink" onclick={unlinkSheet} title="Unlink">✕</button>
+					</div>
+				{:else}
+					<input
+						bind:value={sheetQuery}
+						oninput={onSheetQuery}
+						placeholder="Search bestiary… e.g. archmage, or your Custom sheet"
+					/>
+					{#if sheetResults.length}
+						<ul class="results">
+							{#each sheetResults as r (r.slug)}
+								<li>
+									<button type="button" onclick={() => pickSheet(r)}>
+										{#if r.img}<img src={r.img} alt="" />{/if}
+										<span>{r.name}</span>
+										<small>CR {r.cr_text ?? '—'} · {r.type ?? '?'}</small>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				{/if}
+			</div>
 			<label>Portrait <input type="file" bind:this={fileInput} accept=".png,.jpg,.jpeg,.webp,.gif" /></label>
 			{#if errorMsg}<p class="err">{errorMsg}</p>{/if}
 			<button class="primary" type="submit" disabled={saving}>
@@ -168,6 +254,22 @@
 			</button>
 		</form>
 	</aside>
+{/if}
+
+{#if sheetView}
+	<div
+		class="sheet-backdrop"
+		role="button"
+		tabindex="-1"
+		onclick={() => (sheetView = null)}
+		onkeydown={(e) => e.key === 'Enter' && (sheetView = null)}
+	></div>
+	<aside class="sheet">
+		<button class="close" onclick={() => (sheetView = null)}>✕ close</button>
+		<StatBlock meta={sheetView.meta} monster={sheetView.monster} />
+	</aside>
+{:else if sheetViewLoading}
+	<div class="sheet-backdrop loading">Loading sheet…</div>
 {/if}
 
 <style>
@@ -334,5 +436,77 @@
 	.err {
 		color: var(--danger);
 		margin: 0;
+	}
+	.sheet-btn {
+		font-size: 0.95rem;
+	}
+	.sheet-backdrop.loading {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--muted);
+	}
+	.sheet-link {
+		display: grid;
+		gap: 0.25rem;
+	}
+	.sheet-link .lbl {
+		font-size: 0.88rem;
+		color: var(--muted);
+	}
+	.linked {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		padding: 0.35rem 0.6rem;
+	}
+	.unlink {
+		background: transparent;
+		border: none;
+		color: var(--muted);
+		padding: 0 0.2rem;
+	}
+	.unlink:hover {
+		color: var(--danger);
+	}
+	.results {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		max-height: 240px;
+		overflow-y: auto;
+	}
+	.results li + li {
+		border-top: 1px solid var(--border);
+	}
+	.results button {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		width: 100%;
+		background: transparent;
+		border: none;
+		border-radius: 0;
+		padding: 0.4rem 0.6rem;
+		text-align: left;
+	}
+	.results button:hover {
+		background: var(--panel-2);
+	}
+	.results img {
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		object-fit: cover;
+	}
+	.results small {
+		margin-left: auto;
+		color: var(--muted);
+		white-space: nowrap;
 	}
 </style>

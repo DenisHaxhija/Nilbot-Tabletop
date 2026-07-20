@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, sheetSlugFromForm } from '$lib/server/db';
 import { storeUserImage, QuotaError } from '$lib/server/storage';
 
 export async function POST({ request, locals }) {
@@ -10,7 +10,7 @@ export async function POST({ request, locals }) {
 
 	const info = db
 		.prepare(
-			'INSERT INTO characters (user_id, name, title, description, notes, folder) VALUES (?, ?, ?, ?, ?, ?)'
+			'INSERT INTO characters (user_id, name, title, description, notes, folder, sheet_slug) VALUES (?, ?, ?, ?, ?, ?, ?)'
 		)
 		.run(
 			uid,
@@ -18,7 +18,8 @@ export async function POST({ request, locals }) {
 			String(form.get('title') ?? '').trim(),
 			String(form.get('description') ?? ''),
 			String(form.get('notes') ?? ''),
-			String(form.get('folder') ?? '').trim()
+			String(form.get('folder') ?? '').trim(),
+			sheetSlugFromForm(form, uid) ?? null
 		);
 
 	const file = form.get('file');

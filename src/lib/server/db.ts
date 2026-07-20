@@ -141,6 +141,26 @@ try {
 } catch {
 	// column already present
 }
+// Optional link to a stat sheet (monsters.slug — bestiary or Custom).
+try {
+	db.exec(`ALTER TABLE characters ADD COLUMN sheet_slug TEXT`);
+} catch {
+	// column already present
+}
+
+// Reads a sheet_slug field off a character form. Returns the slug when it
+// exists and is visible to this user (shared or own), null for an explicit
+// unlink (empty value), undefined when absent/invalid (leave unchanged).
+export function sheetSlugFromForm(form: FormData, userId: number): string | null | undefined {
+	const raw = form.get('sheet_slug');
+	if (raw === null) return undefined;
+	const slug = String(raw).trim();
+	if (!slug) return null;
+	const row = db
+		.prepare('SELECT 1 FROM monsters WHERE slug = ? AND (user_id IS NULL OR user_id = ?)')
+		.get(slug, userId);
+	return row ? slug : undefined;
+}
 try {
 	db.exec(`ALTER TABLE notes ADD COLUMN src TEXT`);
 } catch {

@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, sheetSlugFromForm } from '$lib/server/db';
 import { imageResponse, storeUserImage, deleteObject, addUsage, QuotaError } from '$lib/server/storage';
 
 function getRow(id: string, userId: number) {
@@ -34,6 +34,10 @@ export async function POST({ params, request, locals }) {
 		String(form.get('folder') ?? '').trim(),
 		row.id
 	);
+	const sheetSlug = sheetSlugFromForm(form, locals.user!.id);
+	if (sheetSlug !== undefined) {
+		db.prepare('UPDATE characters SET sheet_slug = ? WHERE id = ?').run(sheetSlug, row.id);
+	}
 
 	const file = form.get('file');
 	if (file instanceof File && file.size > 0) {
