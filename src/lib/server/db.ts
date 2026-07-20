@@ -147,6 +147,18 @@ try {
 } catch {
 	// column already present
 }
+try {
+	db.exec(`ALTER TABLE pcs ADD COLUMN sheet_slug TEXT`);
+} catch {
+	// column already present
+}
+
+// True when the slug names a sheet this user can see (shared or own).
+export function validSheetSlug(slug: string, userId: number): boolean {
+	return !!db
+		.prepare('SELECT 1 FROM monsters WHERE slug = ? AND (user_id IS NULL OR user_id = ?)')
+		.get(slug, userId);
+}
 
 // Reads a sheet_slug field off a character form. Returns the slug when it
 // exists and is visible to this user (shared or own), null for an explicit
@@ -156,10 +168,7 @@ export function sheetSlugFromForm(form: FormData, userId: number): string | null
 	if (raw === null) return undefined;
 	const slug = String(raw).trim();
 	if (!slug) return null;
-	const row = db
-		.prepare('SELECT 1 FROM monsters WHERE slug = ? AND (user_id IS NULL OR user_id = ?)')
-		.get(slug, userId);
-	return row ? slug : undefined;
+	return validSheetSlug(slug, userId) ? slug : undefined;
 }
 try {
 	db.exec(`ALTER TABLE notes ADD COLUMN src TEXT`);

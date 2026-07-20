@@ -46,6 +46,40 @@
 		invalidateAll();
 	}
 
+	// Stat-sheet linking per PC — clicking their token in a battle opens it.
+	let linkingPcId = $state<number | null>(null);
+	let pcSheetQuery = $state('');
+	let pcSheetResults = $state<any[]>([]);
+	let pcSheetTimer: ReturnType<typeof setTimeout>;
+	function startLinking(id: number) {
+		linkingPcId = linkingPcId === id ? null : id;
+		pcSheetQuery = '';
+		pcSheetResults = [];
+	}
+	function onPcSheetQuery() {
+		clearTimeout(pcSheetTimer);
+		pcSheetTimer = setTimeout(async () => {
+			const q = pcSheetQuery.trim();
+			if (!q) {
+				pcSheetResults = [];
+				return;
+			}
+			const res = await fetch(`/api/monsters/search?q=${encodeURIComponent(q)}`);
+			pcSheetResults = (await res.json()).results;
+		}, 200);
+	}
+	async function setPcSheet(id: number, slug: string) {
+		await fetch(`/api/pcs/${id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ sheet_slug: slug })
+		});
+		linkingPcId = null;
+		pcSheetQuery = '';
+		pcSheetResults = [];
+		invalidateAll();
+	}
+
 	let sparkCulture = $state('Human');
 	let sparks = $state<string[]>([
 		generateName('Human'),
@@ -156,10 +190,45 @@
 					{/if}
 					<b>{pc.name}</b>
 					{#if pc.class}<small>{pc.class}</small>{/if}
+					{#if pc.sheetSlug}
+						<button
+							class="pc-sheet on"
+							title="Linked sheet: {pc.sheetName ?? pc.sheetSlug} — click to unlink"
+							onclick={() => setPcSheet(pc.id, '')}>📜 {pc.sheetName ?? 'sheet'}</button
+						>
+					{:else}
+						<button
+							class="pc-sheet"
+							title="Link a stat sheet — clicking their token in a battle opens it"
+							onclick={() => startLinking(pc.id)}>＋📜</button
+						>
+					{/if}
 					<button class="pc-del" title="Remove" onclick={() => removePc(pc.id, pc.name)}>✕</button>
 				</div>
 			{/each}
 		</div>
+		{#if linkingPcId !== null}
+			<div class="pc-sheet-search">
+				<input
+					bind:value={pcSheetQuery}
+					oninput={onPcSheetQuery}
+					placeholder="Search bestiary for {data.pcs.find((p: any) => p.id === linkingPcId)?.name}…"
+				/>
+				{#if pcSheetResults.length}
+					<ul class="pc-sheet-results">
+						{#each pcSheetResults as r (r.slug)}
+							<li>
+								<button onclick={() => setPcSheet(linkingPcId!, r.slug)}>
+									{#if r.img}<img src={r.img} alt="" />{/if}
+									<span>{r.name}</span>
+									<small>CR {r.cr_text ?? '—'}</small>
+								</button>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</div>
+		{/if}
 		{#if addingPc}
 			<form class="pc-form" onsubmit={addPc}>
 				<input bind:value={pcName} placeholder="Character name" required />
@@ -404,6 +473,67 @@
 	}
 	.pc:hover .pc-del {
 		opacity: 1;
+	}
+	.pc-sheet {
+		background: transparent;
+		border: 1px solid var(--border);
+		border-radius: 99px;
+		color: var(--muted);
+		font-size: 0.7rem;
+		padding: 0.1rem 0.5rem;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.pc-sheet:hover {
+		border-color: var(--accent);
+		color: var(--text);
+	}
+	.pc-sheet.on {
+		color: var(--accent);
+		border-color: var(--accent);
+	}
+	.pc-sheet-search {
+		margin-top: 0.5rem;
+		display: grid;
+		gap: 0.3rem;
+	}
+	.pc-sheet-results {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		max-height: 200px;
+		overflow-y: auto;
+	}
+	.pc-sheet-results li + li {
+		border-top: 1px solid var(--border);
+	}
+	.pc-sheet-results button {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		width: 100%;
+		background: transparent;
+		border: none;
+		border-radius: 0;
+		padding: 0.35rem 0.6rem;
+		text-align: left;
+	}
+	.pc-sheet-results button:hover {
+		background: var(--panel-2);
+	}
+	.pc-sheet-results img {
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		object-fit: cover;
+	}
+	.pc-sheet-results small {
+		margin-left: auto;
+		color: var(--muted);
 	}
 	.pc-del:hover {
 		color: var(--danger);

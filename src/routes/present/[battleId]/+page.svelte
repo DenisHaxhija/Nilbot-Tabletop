@@ -87,14 +87,20 @@
 						? `url('${t.img}') center / cover, #0d0e11`
 						: t.kind === 'pc'
 							? '#3d6b9e'
-							: tokenColor(t.type)};
+							: t.kind === 'npc'
+								? '#6b4d8f'
+								: tokenColor(t.type)};
 						border-color: {t.kind === 'pc'
 						? t.img
 							? 'rgba(122, 166, 210, 0.45)'
 							: '#9ec7ef'
-						: t.img
-							? tokenColor(t.type)
-							: '#0d0e11'};
+						: t.kind === 'npc'
+							? t.img
+								? 'rgba(169, 137, 212, 0.5)'
+								: '#b99ee0'
+							: t.img
+								? tokenColor(t.type)
+								: '#0d0e11'};
 					"
 				>
 					{#if !t.img}
