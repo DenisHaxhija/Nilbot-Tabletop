@@ -111,6 +111,32 @@
 			}
 		}, 65);
 	}
+
+	// The rest of the dice bag — roll qty × die, animated like the d20.
+	const DICE = [4, 6, 8, 10, 12, 100];
+	let qty = $state(1);
+	let diceResult = $state<{ label: string; total: number; rolls: number[] } | null>(null);
+	let diceRolling = $state(false);
+	let diceTimer: ReturnType<typeof setInterval>;
+	function rollDice(sides: number) {
+		if (diceRolling) return;
+		diceRolling = true;
+		const n = Math.min(20, Math.max(1, Math.round(qty) || 1));
+		qty = n;
+		let ticks = 0;
+		diceTimer = setInterval(() => {
+			const rolls = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * sides));
+			diceResult = {
+				label: `${n}d${sides}`,
+				total: rolls.reduce((a, b) => a + b, 0),
+				rolls
+			};
+			if (++ticks >= 8) {
+				clearInterval(diceTimer);
+				diceRolling = false;
+			}
+		}, 70);
+	}
 </script>
 
 <svelte:head><title>NilBot — DM's workbench</title></svelte:head>
@@ -173,6 +199,26 @@
 				Click the die
 			{/if}
 		</p>
+		<div class="dice-bag">
+			<div class="qty">
+				<button onclick={() => (qty = Math.max(1, qty - 1))} title="Fewer dice">−</button>
+				<input type="number" min="1" max="20" bind:value={qty} />
+				<button onclick={() => (qty = Math.min(20, qty + 1))} title="More dice">＋</button>
+			</div>
+			<div class="dice-row">
+				{#each DICE as d (d)}
+					<button class="die-btn" onclick={() => rollDice(d)} disabled={diceRolling}>d{d}</button>
+				{/each}
+			</div>
+			{#if diceResult}
+				<p class="dice-out" class:spin={diceRolling}>
+					{diceResult.label} → <b>{diceResult.total}</b>
+					{#if diceResult.rolls.length > 1}
+						<span class="breakdown">({diceResult.rolls.join(' + ')})</span>
+					{/if}
+				</p>
+			{/if}
+		</div>
 	</div>
 
 	<div class="panel">
@@ -421,6 +467,61 @@
 		font-style: italic;
 		margin: 0.4rem 0 0;
 		font-size: 0.9rem;
+	}
+	.dice-bag {
+		border-top: 1px solid var(--border);
+		margin-top: 0.7rem;
+		padding-top: 0.7rem;
+		display: grid;
+		gap: 0.5rem;
+		justify-items: center;
+	}
+	.qty {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+	}
+	.qty input {
+		width: 2.8rem;
+		text-align: center;
+		font-size: 0.9rem;
+		padding: 0.2rem 0.1rem;
+	}
+	.qty button {
+		padding: 0.15rem 0.55rem;
+		font-size: 0.9rem;
+	}
+	.dice-row {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 0.35rem;
+	}
+	.die-btn {
+		font-size: 0.85rem;
+		padding: 0.25rem 0.55rem;
+		font-family: var(--serif);
+	}
+	.die-btn:hover {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+	.dice-out {
+		margin: 0;
+		font-size: 0.92rem;
+		color: var(--text);
+		text-align: center;
+	}
+	.dice-out.spin {
+		opacity: 0.6;
+	}
+	.dice-out b {
+		color: var(--accent);
+		font-size: 1.05rem;
+	}
+	.breakdown {
+		color: var(--muted);
+		font-size: 0.8rem;
 	}
 	@keyframes shake {
 		0% { transform: rotate(-4deg); }
