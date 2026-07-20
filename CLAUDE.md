@@ -27,6 +27,11 @@ deploys it. Nothing reaches players except through `live`.
    (5e.tools stat blocks, token art, map images, music) lives in `data/`,
    which is gitignored and volume-mounted. Never commit `data/`, never add
    copyrighted content to the repo. This keeps the app distributable.
+   **The shared layer is a mechanism, not a license:** in any distributed
+   build, only redistributable content (Open5e) may be *pre-loaded* shared;
+   personal-use collections (2MT/DG maps, 5e.tools content) enter the
+   shared layer only when an instance's own operator runs the importers on
+   their own instance. Never bake them into an image or seed.
 2. **Per-user scoping.** Every query on notes/battles/characters/pcs/
    songs/quick_notes/shop_stock filters by `locals.user!.id`. Monsters,
    items, and **battle maps** use the shared-layer pattern
