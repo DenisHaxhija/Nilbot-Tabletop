@@ -2,11 +2,20 @@ import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 
 export async function POST({ params, request, locals }) {
-	const { on } = await request.json();
-	db.prepare('UPDATE characters SET on_canvas = ? WHERE id = ? AND user_id = ?').run(
-		on ? 1 : 0,
-		Number(params.id),
-		locals.user!.id
-	);
+	const body = await request.json();
+	if ('on' in body) {
+		db.prepare('UPDATE characters SET on_canvas = ? WHERE id = ? AND user_id = ?').run(
+			body.on ? 1 : 0,
+			Number(params.id),
+			locals.user!.id
+		);
+	}
+	if ('hideName' in body) {
+		db.prepare('UPDATE characters SET hide_name = ? WHERE id = ? AND user_id = ?').run(
+			body.hideName ? 1 : 0,
+			Number(params.id),
+			locals.user!.id
+		);
+	}
 	return json({ ok: true });
 }

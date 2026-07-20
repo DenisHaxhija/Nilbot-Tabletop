@@ -19,13 +19,20 @@ export function load({ locals }) {
 	};
 
 	const pcs = db
-		.prepare('SELECT id, name, class, file FROM pcs WHERE user_id = ? ORDER BY created_at')
+		.prepare(
+			`SELECT p.id, p.name, p.class, p.file, p.sheet_slug, m.name AS sheet_name
+			 FROM pcs p
+			 LEFT JOIN monsters m ON m.slug = p.sheet_slug AND (m.user_id IS NULL OR m.user_id = p.user_id)
+			 WHERE p.user_id = ? ORDER BY p.created_at`
+		)
 		.all(uid)
 		.map((p: any) => ({
 			id: p.id,
 			name: p.name,
 			class: p.class,
-			img: p.file ? `/api/pcs/${p.id}` : null
+			img: p.file ? `/api/pcs/${p.id}` : null,
+			sheetSlug: p.sheet_slug ?? '',
+			sheetName: p.sheet_name ?? null
 		}));
 
 	const lastSession = db

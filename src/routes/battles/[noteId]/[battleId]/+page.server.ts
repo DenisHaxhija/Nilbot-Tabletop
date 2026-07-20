@@ -50,7 +50,20 @@ export function load({ params, locals }) {
 
 	if (layout?.tokens) {
 		for (const t of layout.tokens) {
-			t.img = t.kind === 'pc' ? (t.img ?? null) : tokenImg(t.slug);
+			t.img = t.kind === 'monster' ? tokenImg(t.slug) : (t.img ?? null);
+			// Refresh sheet links on every load so linking/unlinking after the
+			// layout was saved still takes effect.
+			if (t.kind === 'pc' && /^pc\d+$/.test(t.id)) {
+				const pc = db
+					.prepare('SELECT sheet_slug FROM pcs WHERE id = ? AND user_id = ?')
+					.get(Number(t.id.slice(2)), uid) as { sheet_slug: string | null } | undefined;
+				t.sheetSlug = pc?.sheet_slug ?? null;
+			} else if (t.kind === 'npc' && t.charId) {
+				const ch = db
+					.prepare('SELECT sheet_slug FROM characters WHERE id = ? AND user_id = ?')
+					.get(t.charId, uid) as { sheet_slug: string | null } | undefined;
+				t.sheetSlug = ch?.sheet_slug ?? null;
+			}
 			// Backfill combat fields onto layouts saved before the encounter tracker existed.
 			if (t.maxHp === undefined) {
 				const stats = t.kind === 'monster' ? combatStats(t.slug) : { maxHp: null, initMod: 0 };
@@ -100,8 +113,8 @@ export function load({ params, locals }) {
 	}
 	// Real party members when they exist; generic P1..Pn otherwise.
 	const pcs = db
-		.prepare('SELECT id, name, file FROM pcs WHERE user_id = ? ORDER BY created_at')
-		.all(uid) as { id: number; name: string; file: string | null }[];
+		.prepare('SELECT id, name, file, sheet_slug FROM pcs WHERE user_id = ? ORDER BY created_at')
+		.all(uid) as { id: number; name: string; file: string | null; sheet_slug: string | null }[];
 	const pcExtras = { maxHp: null, hp: null, initMod: 0, init: null, dead: false };
 	if (pcs.length > 0) {
 		for (const pc of pcs) {
@@ -114,6 +127,7 @@ export function load({ params, locals }) {
 				type: null,
 				cells: 1,
 				img: pc.file ? `/api/pcs/${pc.id}` : null,
+				sheetSlug: pc.sheet_slug,
 				...pcExtras
 			});
 		}
@@ -140,12 +154,37 @@ export function load({ params, locals }) {
 		)
 		.all(uid) as { id: number; name: string; tags: string }[];
 
+	// NPCs from the Characters gallery, placeable from the add drawer. Combat
+	// numbers come from the linked sheet when there is one.
+	const npcs = db
+		.prepare(
+			`SELECT c.id, c.name, c.file, c.folder, c.sheet_slug, m.size AS sheet_size
+			 FROM characters c
+			 LEFT JOIN monsters m ON m.slug = c.sheet_slug AND (m.user_id IS NULL OR m.user_id = c.user_id)
+			 WHERE c.user_id = ? ORDER BY c.name`
+		)
+		.all(uid)
+		.map((c: any) => {
+			const stats = combatStats(c.sheet_slug);
+			return {
+				id: c.id,
+				name: c.name,
+				folder: c.folder,
+				img: c.file ? `/api/characters/${c.id}` : null,
+				sheetSlug: c.sheet_slug ?? null,
+				cells: tokenCells(c.sheet_size),
+				maxHp: stats.maxHp,
+				initMod: stats.initMod
+			};
+		});
+
 	return {
 		battle: { id: battle.id, title: battle.title },
 		note,
 		environment: enc.environment ?? null,
 		layout,
 		template,
-		maps
+		maps,
+		npcs
 	};
 }

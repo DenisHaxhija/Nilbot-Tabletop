@@ -5,14 +5,16 @@ export function load({ locals }) {
 
 	// Groups = explicitly created ones + any folder names already on characters.
 	const explicit = db
-		.prepare('SELECT name FROM char_groups WHERE user_id = ? ORDER BY name')
-		.all(uid)
-		.map((r: any) => r.name as string);
+		.prepare('SELECT name, hidden FROM char_groups WHERE user_id = ? ORDER BY name')
+		.all(uid) as { name: string; hidden: number }[];
+	const hiddenByName = new Map(explicit.map((r) => [r.name, !!r.hidden]));
 	const implicit = db
 		.prepare(`SELECT DISTINCT folder FROM characters WHERE user_id = ? AND folder != ''`)
 		.all(uid)
 		.map((r: any) => r.folder as string);
-	const names = [...new Set([...explicit, ...implicit])].sort((a, b) => a.localeCompare(b));
+	const names = [...new Set([...explicit.map((r) => r.name), ...implicit])].sort((a, b) =>
+		a.localeCompare(b)
+	);
 
 	const groups = names.map((name) => {
 		const members = db
@@ -28,6 +30,7 @@ export function load({ locals }) {
 		return {
 			name,
 			count,
+			hidden: hiddenByName.get(name) ?? false,
 			preview: members.slice(0, 4).map((m) => (m.file ? `/api/characters/${m.id}` : null))
 		};
 	});

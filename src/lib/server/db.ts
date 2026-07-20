@@ -141,6 +141,47 @@ try {
 } catch {
 	// column already present
 }
+// Optional link to a stat sheet (monsters.slug — bestiary or Custom).
+try {
+	db.exec(`ALTER TABLE characters ADD COLUMN sheet_slug TEXT`);
+} catch {
+	// column already present
+}
+try {
+	db.exec(`ALTER TABLE pcs ADD COLUMN sheet_slug TEXT`);
+} catch {
+	// column already present
+}
+// Spoiler protection: hidden groups collapse on the Characters index; a
+// character with hide_name set shows as "???" on the player-facing canvas.
+try {
+	db.exec(`ALTER TABLE char_groups ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`);
+} catch {
+	// column already present
+}
+try {
+	db.exec(`ALTER TABLE characters ADD COLUMN hide_name INTEGER NOT NULL DEFAULT 0`);
+} catch {
+	// column already present
+}
+
+// True when the slug names a sheet this user can see (shared or own).
+export function validSheetSlug(slug: string, userId: number): boolean {
+	return !!db
+		.prepare('SELECT 1 FROM monsters WHERE slug = ? AND (user_id IS NULL OR user_id = ?)')
+		.get(slug, userId);
+}
+
+// Reads a sheet_slug field off a character form. Returns the slug when it
+// exists and is visible to this user (shared or own), null for an explicit
+// unlink (empty value), undefined when absent/invalid (leave unchanged).
+export function sheetSlugFromForm(form: FormData, userId: number): string | null | undefined {
+	const raw = form.get('sheet_slug');
+	if (raw === null) return undefined;
+	const slug = String(raw).trim();
+	if (!slug) return null;
+	return validSheetSlug(slug, userId) ? slug : undefined;
+}
 try {
 	db.exec(`ALTER TABLE notes ADD COLUMN src TEXT`);
 } catch {
@@ -282,6 +323,7 @@ export interface MonsterRow {
   layer: string;
   data: string;
   token: string | null;
+  user_id: number | null;
 }
 
 export interface MonsterFilters {

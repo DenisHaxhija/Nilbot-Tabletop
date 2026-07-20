@@ -90,6 +90,40 @@
 		persist();
 	}
 
+	// NPCs from the Characters gallery; filtered by the same search box.
+	const filteredNpcs = $derived(
+		search.trim()
+			? data.npcs.filter((c: any) => c.name.toLowerCase().includes(search.trim().toLowerCase()))
+			: data.npcs
+	);
+
+	function addNpc(c: any) {
+		if (!layout) return;
+		layout.tokens.push({
+			id: `n${c.id}-${Date.now()}`,
+			kind: 'npc',
+			charId: c.id,
+			label: '',
+			name: c.name,
+			slug: null,
+			sheetSlug: c.sheetSlug,
+			type: null,
+			cells: c.cells ?? 1,
+			img: c.img,
+			maxHp: c.maxHp ?? null,
+			hp: c.maxHp ?? null,
+			initMod: c.initMod ?? 0,
+			init: null,
+			dead: false,
+			x: 0.5,
+			y: 0.5
+		});
+		lastAdded = c.name;
+		clearTimeout(addedTimer);
+		addedTimer = setTimeout(() => (lastAdded = ''), 2500);
+		persist();
+	}
+
 	// layout = { mapId, scale (token diameter as % of map width), tokens: [{..., x, y} fractions 0..1] }
 	let layout = $state(data.layout);
 	let saveState = $state<'saved' | 'saving' | 'error'>('saved');
@@ -155,7 +189,8 @@
 
 	function rollInitiative() {
 		for (const t of layout.tokens) {
-			if (t.kind === 'monster' && !t.dead) {
+			// DM-controlled combatants roll automatically; players call their own.
+			if ((t.kind === 'monster' || t.kind === 'npc') && !t.dead) {
 				t.init = 1 + Math.floor(Math.random() * 20) + (t.initMod ?? 0);
 			}
 		}
@@ -272,6 +307,7 @@
 		drag = null;
 		if (wasDrag) persist();
 		else if (t?.kind === 'monster' && t.slug) openSheet(t.slug);
+		else if (t?.sheetSlug) openSheet(t.sheetSlug);
 	}
 
 	// --- Monster sheet slide-over ---
@@ -382,20 +418,26 @@
 					? `url('${t.img}') center / cover, #0d0e11`
 					: t.kind === 'pc'
 						? '#3d6b9e'
-						: tokenColor(t.type)};
+						: t.kind === 'npc'
+							? '#6b4d8f'
+							: tokenColor(t.type)};
 					border-color: {t.kind === 'pc'
 					? t.img
 						? 'rgba(122, 166, 210, 0.45)'
 						: '#9ec7ef'
-					: t.img
-						? tokenColor(t.type)
-						: '#0d0e11'};
+					: t.kind === 'npc'
+						? t.img
+							? 'rgba(169, 137, 212, 0.5)'
+							: '#b99ee0'
+						: t.img
+							? tokenColor(t.type)
+							: '#0d0e11'};
 				"
 				title="{t.name}{t.label ? ` ${t.label}` : ''}"
 				onpointerdown={(e) => startDrag(e, t.id)}
 			>
 				{#if !t.img}
-					<span>{t.kind === 'pc' ? t.label || tokenInitials(t.name) : tokenInitials(t.name) + t.label}</span>
+					<span>{t.kind === 'pc' ? t.label || tokenInitials(t.name) : t.kind === 'npc' ? tokenInitials(t.name) : tokenInitials(t.name) + t.label}</span>
 				{:else if t.label}
 					<span class="corner">{t.label}</span>
 				{/if}
@@ -409,8 +451,8 @@
 		{#if editMode}
 			<b>Edit mode:</b> click any token to remove it from the battle.
 		{:else}
-			Drag tokens to reposition · click a monster for its stat block · Shift+click removes a token
-			· new creatures drop in at the center of the map.
+			Drag tokens to reposition · click a monster (or anyone with a linked sheet) for the stat
+			block · Shift+click removes a token · new creatures drop in at the center of the map.
 		{/if}
 	</p>
 	</div>
@@ -430,7 +472,9 @@
 							? `url('${t.img}') center / cover`
 							: t.kind === 'pc'
 								? '#3d6b9e'
-								: tokenColor(t.type)}"
+								: t.kind === 'npc'
+									? '#6b4d8f'
+									: tokenColor(t.type)}"
 					></span>
 					<span class="cname" title={t.name}>{t.name}{t.label ? ` ${t.label}` : ''}</span>
 					<input
@@ -443,7 +487,9 @@
 					/>
 					<span class="hp-wrap" title="Hit points">
 						<input class="hp" type="number" bind:value={t.hp} onchange={() => updateHp(t)} />
-						{#if t.kind === 'pc'}
+						{#if t.kind === 'monster'}
+							<span class="maxhp">/ {t.maxHp ?? '?'}</span>
+						{:else}
 							<span>/</span>
 							<input
 								class="hp"
@@ -453,8 +499,6 @@
 								bind:value={t.maxHp}
 								onchange={() => updateHp(t)}
 							/>
-						{:else}
-							<span class="maxhp">/ {t.maxHp ?? '?'}</span>
 						{/if}
 					</span>
 					<input
@@ -513,12 +557,33 @@
 		<input
 			class="drawer-search"
 			type="search"
-			placeholder="Search the bestiary…"
+			placeholder="Search the bestiary or your characters…"
 			bind:value={search}
 			oninput={onSearchInput}
 			use:focusOnMount
 		/>
 		{#if lastAdded}<p class="added">✓ {lastAdded} placed at the center of the map</p>{/if}
+		{#if filteredNpcs.length}
+			<p class="npc-head">Your characters</p>
+			<ul class="results">
+				{#each filteredNpcs as c (c.id)}
+					<li>
+						<button onclick={() => addNpc(c)}>
+							{#if c.img}
+								<img src={c.img} alt="" />
+							{:else}
+								<span class="dot" style="background:#6b4d8f"></span>
+							{/if}
+							<span class="rname">{c.name}</span>
+							<span class="rmeta">
+								{c.folder || 'ungrouped'}{c.sheetSlug ? ' · 📜 sheet' : ''}
+							</span>
+						</button>
+					</li>
+				{/each}
+			</ul>
+			<p class="npc-head">Bestiary</p>
+		{/if}
 		<ul class="results">
 			{#if searching}<li class="note">searching…</li>{/if}
 			{#each results as m (m.slug)}
@@ -583,6 +648,13 @@
 		color: var(--accent);
 		font-size: 0.85rem;
 		margin: 0.5rem 0 0;
+	}
+	.npc-head {
+		color: var(--muted);
+		font-size: 0.78rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		margin: 0.7rem 0 0.3rem;
 	}
 	.results {
 		list-style: none;

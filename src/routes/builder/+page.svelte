@@ -1,23 +1,100 @@
 <script lang="ts">
 	import StatBlock from '$lib/components/StatBlock.svelte';
+	import SheetEditor from '$lib/components/SheetEditor.svelte';
 	import { goto } from '$app/navigation';
+
+	let { data } = $props();
 
 	let description = $state('');
 	let feedback = $state('');
-	let sheet = $state<Record<string, any> | null>(null);
+	let sheet = $state<Record<string, any> | null>(data.edit ? data.edit.sheet : null);
+	let editingSlug = $state<string | null>(data.edit?.slug ?? null);
+	let manual = $state(false);
 	let busy = $state(false);
 	let confirming = $state(false);
 	let errorMsg = $state('');
-	let chatLog = $state<{ who: 'you' | 'ai'; text: string }[]>([]);
+	let chatLog = $state<{ who: 'you' | 'ai'; text: string }[]>(
+		data.edit
+			? [
+					{
+						who: 'ai',
+						text: `Loaded ${data.edit.sheet.name} from your bestiary — refine it in chat, edit it by hand, or both. Saving updates the existing sheet.`
+					}
+				]
+			: []
+	);
 
 	let tokenInput: HTMLInputElement | undefined = $state();
-	let tokenPreview = $state<string | null>(null);
+	let tokenPreview = $state<string | null>(data.edit?.tokenUrl ?? null);
 
 	function onTokenPick() {
 		const file = tokenInput?.files?.[0];
-		if (tokenPreview) URL.revokeObjectURL(tokenPreview);
-		tokenPreview = file ? URL.createObjectURL(file) : null;
+		if (tokenPreview?.startsWith('blob:')) URL.revokeObjectURL(tokenPreview);
+		tokenPreview = file ? URL.createObjectURL(file) : (data.edit?.tokenUrl ?? null);
 	}
+
+	// Blank Open5e-shaped sheet for building without AI.
+	function startByHand() {
+		sheet = {
+			name: '',
+			size: 'Medium',
+			type: 'humanoid',
+			alignment: 'unaligned',
+			armor_class: 10,
+			armor_desc: '',
+			hit_points: 10,
+			hit_dice: '',
+			speed: { walk: 30 },
+			strength: 10,
+			dexterity: 10,
+			constitution: 10,
+			intelligence: 10,
+			wisdom: 10,
+			charisma: 10,
+			skills: {},
+			damage_vulnerabilities: '',
+			damage_resistances: '',
+			damage_immunities: '',
+			condition_immunities: '',
+			senses: '',
+			languages: '',
+			challenge_rating: '1',
+			special_abilities: [],
+			actions: [],
+			bonus_actions: [],
+			reactions: [],
+			legendary_desc: '',
+			legendary_actions: []
+		};
+		manual = true;
+		chatLog = [
+			{
+				who: 'ai',
+				text: 'Blank sheet — fill it in by hand. The AI chat still works if you want help along the way.'
+			}
+		];
+	}
+
+	// SvelteKit reuses this component across navigations — resync when the
+	// ?edit target changes (or is cleared via the sidebar link).
+	$effect(() => {
+		if ((data.edit?.slug ?? null) === editingSlug) return;
+		editingSlug = data.edit?.slug ?? null;
+		sheet = data.edit ? data.edit.sheet : null;
+		tokenPreview = data.edit?.tokenUrl ?? null;
+		manual = false;
+		feedback = '';
+		errorMsg = '';
+		if (tokenInput) tokenInput.value = '';
+		chatLog = data.edit
+			? [
+					{
+						who: 'ai',
+						text: `Loaded ${data.edit.sheet.name} from your bestiary — refine it in chat, edit it by hand, or both. Saving updates the existing sheet.`
+					}
+				]
+			: [];
+	});
 
 	const previewMeta = $derived(
 		sheet
@@ -79,6 +156,7 @@
 		try {
 			const form = new FormData();
 			form.set('sheet', JSON.stringify(sheet));
+			if (editingSlug) form.set('slug', editingSlug);
 			const file = tokenInput?.files?.[0];
 			if (file) form.set('file', file);
 			const res = await fetch('/api/builder/confirm', { method: 'POST', body: form });
@@ -100,23 +178,31 @@
 
 <h1>Sheet Builder</h1>
 <p class="tip">
-	Describe a character or creature, add its token, and let the AI draft a full stat block.
-	Refine it in chat until it's right, then add it to your bestiary as <b>Custom</b>.
+	{#if editingSlug}
+		Editing <b>{sheet?.name}</b> — revise it in chat, flip on hand editing for direct control,
+		then save your changes back to the bestiary.
+	{:else}
+		Describe a character or creature, add its token, and let the AI draft a full stat block —
+		or start from a blank sheet and build it by hand. Refine in chat or edit directly until
+		it's right, then add it to your bestiary as <b>Custom</b>.
+	{/if}
 </p>
 
 <div class="builder">
 	<div class="left">
-		<label class="field">
-			Who is this?
-			<textarea
-				bind:value={description}
-				rows="7"
-				placeholder="e.g. Grukk the Ash-Tongued — an old hobgoblin warlord who lost an eye to Anri's arrow. Fights with a whip and barked commands, tougher than a normal hobgoblin, should scare a level 5 party but be beatable…"
-			></textarea>
-		</label>
+		{#if !editingSlug}
+			<label class="field">
+				Who is this?
+				<textarea
+					bind:value={description}
+					rows="7"
+					placeholder="e.g. Grukk the Ash-Tongued — an old hobgoblin warlord who lost an eye to Anri's arrow. Fights with a whip and barked commands, tougher than a normal hobgoblin, should scare a level 5 party but be beatable…"
+				></textarea>
+			</label>
+		{/if}
 
 		<label class="field">
-			Token image (optional)
+			Token image ({editingSlug ? 'replace current' : 'optional'})
 			<input type="file" bind:this={tokenInput} accept=".png,.jpg,.jpeg,.webp,.gif" onchange={onTokenPick} />
 		</label>
 		{#if tokenPreview}
@@ -124,9 +210,14 @@
 		{/if}
 
 		{#if !sheet}
-			<button class="primary" onclick={() => generate(false)} disabled={busy || !description.trim()}>
-				{busy ? 'Designing…' : '✦ Generate sheet'}
-			</button>
+			<div class="row">
+				<button class="primary" onclick={() => generate(false)} disabled={busy || !description.trim()}>
+					{busy ? 'Designing…' : '✦ Generate sheet'}
+				</button>
+				<button onclick={startByHand} disabled={busy} title="Skip the AI — start from a blank stat block">
+					✎ Start by hand
+				</button>
+			</div>
 		{/if}
 
 		{#if chatLog.length}
@@ -150,17 +241,27 @@
 				<button onclick={() => generate(true)} disabled={busy || !feedback.trim()}>
 					{busy ? 'Revising…' : '↻ Revise'}
 				</button>
-				<button class="primary" onclick={confirm} disabled={busy || confirming}>
-					{confirming ? 'Adding…' : '✓ Confirm — add to bestiary'}
+				<button class:edit-on={manual} onclick={() => (manual = !manual)}>
+					{manual ? '👁 Preview' : '✎ Edit by hand'}
 				</button>
-				<button
-					class="subtle"
-					onclick={() => {
-						sheet = null;
-						chatLog = [];
-					}}
-					disabled={busy}>start over</button
-				>
+				<button class="primary" onclick={confirm} disabled={busy || confirming}>
+					{confirming
+						? 'Saving…'
+						: editingSlug
+							? '✓ Save changes'
+							: '✓ Confirm — add to bestiary'}
+				</button>
+				{#if !editingSlug}
+					<button
+						class="subtle"
+						onclick={() => {
+							sheet = null;
+							chatLog = [];
+							manual = false;
+						}}
+						disabled={busy}>start over</button
+					>
+				{/if}
 			</div>
 		{/if}
 
@@ -168,7 +269,11 @@
 	</div>
 
 	<div class="right">
-		{#if sheet && previewMeta}
+		{#if sheet && manual}
+			{#key sheet}
+				<SheetEditor bind:sheet />
+			{/key}
+		{:else if sheet && previewMeta}
 			<StatBlock meta={previewMeta} monster={sheet} />
 		{:else}
 			<div class="placeholder">
@@ -223,6 +328,11 @@
 	.subtle {
 		background: transparent;
 		color: var(--muted);
+	}
+	.edit-on {
+		color: var(--accent);
+		border-color: var(--accent);
+		background: rgba(127, 191, 127, 0.08);
 	}
 	.row {
 		display: flex;

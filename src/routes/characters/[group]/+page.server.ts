@@ -6,7 +6,11 @@ export function load({ params, locals }) {
 
 	const characters = db
 		.prepare(
-			'SELECT id, name, title, description, notes, file, on_canvas, folder FROM characters WHERE user_id = ? AND folder = ? ORDER BY name'
+			`SELECT c.id, c.name, c.title, c.description, c.notes, c.file, c.on_canvas, c.folder,
+			        c.hide_name, c.sheet_slug, m.name AS sheet_name
+			 FROM characters c
+			 LEFT JOIN monsters m ON m.slug = c.sheet_slug AND (m.user_id IS NULL OR m.user_id = c.user_id)
+			 WHERE c.user_id = ? AND c.folder = ? ORDER BY c.name`
 		)
 		.all(uid, group)
 		.map((c: any) => ({
@@ -17,7 +21,10 @@ export function load({ params, locals }) {
 			notes: c.notes,
 			folder: c.folder,
 			onCanvas: !!c.on_canvas,
-			img: c.file ? `/api/characters/${c.id}` : null
+			hideName: !!c.hide_name,
+			img: c.file ? `/api/characters/${c.id}` : null,
+			sheetSlug: c.sheet_slug ?? '',
+			sheetName: c.sheet_name ?? null
 		}));
 
 	const folders = [
