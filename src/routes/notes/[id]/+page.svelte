@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { marked } from 'marked';
+	import { browser } from '$app/environment';
 
 	let { data } = $props();
+
+	// The extractor panel can fold away to give the text the full width.
+	let panelHidden = $state(browser && localStorage.getItem('nb-extractor') === '1');
+	function togglePanel() {
+		panelHidden = !panelHidden;
+		localStorage.setItem('nb-extractor', panelHidden ? '1' : '0');
+	}
 
 	let title = $state(data.note.title);
 	let content = $state(data.note.content);
@@ -124,6 +132,9 @@
 		<button onclick={() => (showPreview = !showPreview)}>
 			{showPreview ? 'Edit' : 'Preview'}
 		</button>
+		<button onclick={togglePanel} title="Show/hide the Battle Extractor panel">
+			{panelHidden ? '⚔ Extractor' : '⚔ ✕'}
+		</button>
 	{/if}
 </div>
 
@@ -159,7 +170,7 @@
 	</div>
 {/if}
 
-<div class="workspace" class:hidden={tab !== 'session'}>
+<div class="workspace" class:hidden={tab !== 'session'} class:solo={panelHidden}>
 	<div class="pane">
 		{#if showPreview}
 			<div class="preview">
@@ -327,6 +338,12 @@
 		grid-template-columns: 1fr 340px;
 		gap: 1rem;
 		align-items: start;
+	}
+	.workspace.solo {
+		grid-template-columns: 1fr;
+	}
+	.workspace.solo .panel {
+		display: none;
 	}
 	@media (max-width: 900px) {
 		.workspace {
