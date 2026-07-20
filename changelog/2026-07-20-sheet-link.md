@@ -22,6 +22,16 @@ Clicking any token with a linked sheet in a battle opens the stat block,
 same as enemies. Links are re-read from the DB on every battle load, so
 relinking after a layout was saved still takes effect.
 
+Spoiler protection for the Characters section:
+- **Hidden groups**: the 🙈 toggle on a group card moves it into a
+  collapsed "hidden groups" bar at the bottom of the Characters index —
+  nothing about it is visible until the bar is clicked open. Works for
+  implicit (folder-only) groups too; `char_groups.hidden`.
+- **Hidden names**: the 🎭 toggle on a character card masks them on the
+  player-facing canvas — name shows as "???" and the title is dropped.
+  Masking happens server-side (canvas load + SSE stream), so the real
+  name never reaches the player view. `characters.hide_name`.
+
 ## Why
 NPCs that can fight (rivals, bosses, allies) lived in two places —
 their lore in Characters, their numbers in the bestiary — with no
@@ -35,7 +45,9 @@ it for the stat block. Unlink via ✕ in the editor. In a battle: ＋ Add
 creature → pick someone under "Your characters" → click their token.
 Dashboard → party panel → ＋📜 on a PC → link → click their blue token
 in a battle. Present views are unchanged — sheets are DM-only (hard
-rule 6).
+rule 6). Spoilers: hover a group card → 🙈 to hide it, then find it in
+the collapsed bar at the bottom; 🎭 on a character card, send them to
+canvas, and the canvas shows "???".
 
 ## Deploy steps
 None. (Column is added automatically at boot.)

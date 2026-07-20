@@ -137,6 +137,15 @@
 		invalidateAll();
 	}
 
+	async function toggleHideName(c: any) {
+		await fetch(`/api/characters/${c.id}/canvas`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ hideName: !c.hideName })
+		});
+		invalidateAll();
+	}
+
 	function onKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') close();
 	}
@@ -183,9 +192,19 @@
 				<button onclick={() => openEdit(c)} title="Edit">✎</button>
 				<button class="del" onclick={() => remove(c)} title="Delete">✕</button>
 			</div>
-			<button class="canvas-toggle" class:on={c.onCanvas} onclick={() => toggleCanvas(c)}>
-				{c.onCanvas ? '– Remove from canvas' : '＋ Send to canvas'}
-			</button>
+			<div class="canvas-row">
+				<button class="canvas-toggle" class:on={c.onCanvas} onclick={() => toggleCanvas(c)}>
+					{c.onCanvas ? '– Remove from canvas' : '＋ Send to canvas'}
+				</button>
+				<button
+					class="mask-toggle"
+					class:on={c.hideName}
+					title={c.hideName
+						? 'Name hidden — shows as ??? on the canvas'
+						: 'Hide name — show as ??? on the canvas'}
+					onclick={() => toggleHideName(c)}>🎭</button
+				>
+			</div>
 		</div>
 	{/each}
 </div>
@@ -370,13 +389,30 @@
 	.actions .del:hover {
 		color: var(--danger);
 	}
-	.canvas-toggle {
+	.canvas-row {
+		display: flex;
+		gap: 0.35rem;
 		margin: 0.35rem 0.7rem 0.7rem;
+	}
+	.canvas-toggle {
+		flex: 1;
 		font-size: 0.8rem;
 		padding: 0.25rem 0.5rem;
 		color: var(--muted);
 	}
 	.canvas-toggle.on {
+		color: var(--accent);
+		border-color: var(--accent);
+		background: rgba(127, 191, 127, 0.08);
+	}
+	.mask-toggle {
+		font-size: 0.8rem;
+		padding: 0.25rem 0.45rem;
+		color: var(--muted);
+		opacity: 0.65;
+	}
+	.mask-toggle.on {
+		opacity: 1;
 		color: var(--accent);
 		border-color: var(--accent);
 		background: rgba(127, 191, 127, 0.08);

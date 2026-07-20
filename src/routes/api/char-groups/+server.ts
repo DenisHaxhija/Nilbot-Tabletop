@@ -14,6 +14,30 @@ export async function POST({ request, locals }) {
 	return json({ ok: true, name: clean });
 }
 
+export async function PATCH({ request, locals }) {
+	const { name, hidden } = await request.json();
+	const clean = String(name ?? '').trim();
+	if (!clean) return json({ error: 'No group named.' }, { status: 400 });
+	// Groups can exist implicitly (a folder name on characters with no
+	// char_groups row) — create the row on demand so those can be hidden too.
+	const uid = locals.user!.id;
+	const existing = db.prepare('SELECT id FROM char_groups WHERE user_id = ? AND name = ?').get(uid, clean);
+	if (existing) {
+		db.prepare('UPDATE char_groups SET hidden = ? WHERE user_id = ? AND name = ?').run(
+			hidden ? 1 : 0,
+			uid,
+			clean
+		);
+	} else {
+		db.prepare('INSERT INTO char_groups (user_id, name, hidden) VALUES (?, ?, ?)').run(
+			uid,
+			clean,
+			hidden ? 1 : 0
+		);
+	}
+	return json({ ok: true });
+}
+
 export async function DELETE({ request, locals }) {
 	const { name } = await request.json();
 	const clean = String(name ?? '').trim();

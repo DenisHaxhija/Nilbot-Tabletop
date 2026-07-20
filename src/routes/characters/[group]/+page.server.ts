@@ -7,7 +7,7 @@ export function load({ params, locals }) {
 	const characters = db
 		.prepare(
 			`SELECT c.id, c.name, c.title, c.description, c.notes, c.file, c.on_canvas, c.folder,
-			        c.sheet_slug, m.name AS sheet_name
+			        c.hide_name, c.sheet_slug, m.name AS sheet_name
 			 FROM characters c
 			 LEFT JOIN monsters m ON m.slug = c.sheet_slug AND (m.user_id IS NULL OR m.user_id = c.user_id)
 			 WHERE c.user_id = ? AND c.folder = ? ORDER BY c.name`
@@ -21,6 +21,7 @@ export function load({ params, locals }) {
 			notes: c.notes,
 			folder: c.folder,
 			onCanvas: !!c.on_canvas,
+			hideName: !!c.hide_name,
 			img: c.file ? `/api/characters/${c.id}` : null,
 			sheetSlug: c.sheet_slug ?? '',
 			sheetName: c.sheet_name ?? null

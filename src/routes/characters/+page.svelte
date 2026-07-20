@@ -26,6 +26,21 @@
 		}
 	}
 
+	// Hidden groups collapse into a section at the bottom so a passer-by
+	// glancing at the screen doesn't get spoiled.
+	const visibleGroups = $derived(data.groups.filter((g: any) => !g.hidden));
+	const hiddenGroups = $derived(data.groups.filter((g: any) => g.hidden));
+	let showHidden = $state(false);
+
+	async function setHidden(name: string, hidden: boolean) {
+		await fetch('/api/char-groups', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name, hidden })
+		});
+		invalidateAll();
+	}
+
 	async function removeGroup(name: string, count: number) {
 		const ok = await confirmDialog({
 			title: 'Delete group?',
@@ -62,26 +77,37 @@
 	<button type="submit" disabled={creating}>＋ Create group</button>
 </form>
 
-<div class="grid">
-	{#each data.groups as g (g.name)}
-		<div class="group-card">
-			<a class="group-link" href="/characters/{encodeURIComponent(g.name)}">
-				<div class="faces">
-					{#each g.preview as p, i (i)}
-						{#if p}
-							<img src={p} alt="" loading="lazy" />
-						{:else}
-							<span class="face-empty">?</span>
-						{/if}
+{#snippet groupCard(g: any)}
+	<div class="group-card">
+		<a class="group-link" href="/characters/{encodeURIComponent(g.name)}">
+			<div class="faces">
+				{#each g.preview as p, i (i)}
+					{#if p}
+						<img src={p} alt="" loading="lazy" />
 					{:else}
-						<span class="face-empty">∅</span>
-					{/each}
-				</div>
-				<b>{g.name}</b>
-				<small>{g.count} character{g.count === 1 ? '' : 's'}</small>
-			</a>
+						<span class="face-empty">?</span>
+					{/if}
+				{:else}
+					<span class="face-empty">∅</span>
+				{/each}
+			</div>
+			<b>{g.name}</b>
+			<small>{g.count} character{g.count === 1 ? '' : 's'}</small>
+		</a>
+		<div class="card-btns">
+			<button
+				class="hide-toggle"
+				title={g.hidden ? 'Unhide group' : 'Hide group — collapses it below, out of sight'}
+				onclick={() => setHidden(g.name, !g.hidden)}>{g.hidden ? '👁' : '🙈'}</button
+			>
 			<button class="del" title="Delete group" onclick={() => removeGroup(g.name, g.count)}>✕</button>
 		</div>
+	</div>
+{/snippet}
+
+<div class="grid">
+	{#each visibleGroups as g (g.name)}
+		{@render groupCard(g)}
 	{/each}
 
 	{#if data.ungrouped > 0}
@@ -98,6 +124,20 @@
 		<p class="empty">No groups yet — create the first one above.</p>
 	{/if}
 </div>
+
+{#if hiddenGroups.length > 0}
+	<button class="hidden-bar" onclick={() => (showHidden = !showHidden)}>
+		🙈 {hiddenGroups.length} hidden group{hiddenGroups.length === 1 ? '' : 's'}
+		<span class="chev">{showHidden ? '▾ shown' : '▸ click to show'}</span>
+	</button>
+	{#if showHidden}
+		<div class="grid">
+			{#each hiddenGroups as g (g.name)}
+				{@render groupCard(g)}
+			{/each}
+		</div>
+	{/if}
+{/if}
 
 <style>
 	.head {
@@ -181,20 +221,53 @@
 	.group-link small {
 		color: var(--muted);
 	}
-	.del {
+	.card-btns {
 		position: absolute;
 		top: 0.5rem;
 		right: 0.5rem;
+		display: flex;
+		gap: 0.15rem;
+		opacity: 0;
+	}
+	.group-card:hover .card-btns {
+		opacity: 1;
+	}
+	.del,
+	.hide-toggle {
 		background: transparent;
 		border: none;
 		color: var(--muted);
-		opacity: 0;
-	}
-	.group-card:hover .del {
-		opacity: 1;
+		padding: 0.1rem 0.25rem;
 	}
 	.del:hover {
 		color: var(--danger);
+	}
+	.hide-toggle:hover {
+		color: var(--text);
+	}
+	.hidden-bar {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		width: 100%;
+		margin-top: 1.4rem;
+		background: var(--panel);
+		border: 1px dashed var(--border);
+		border-radius: 10px;
+		padding: 0.6rem 1rem;
+		color: var(--muted);
+		text-align: left;
+	}
+	.hidden-bar:hover {
+		border-color: var(--accent);
+		color: var(--text);
+	}
+	.hidden-bar + .grid {
+		margin-top: 1rem;
+	}
+	.chev {
+		margin-left: auto;
+		font-size: 0.82rem;
 	}
 	.empty {
 		color: var(--muted);

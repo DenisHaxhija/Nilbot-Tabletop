@@ -152,6 +152,18 @@ try {
 } catch {
 	// column already present
 }
+// Spoiler protection: hidden groups collapse on the Characters index; a
+// character with hide_name set shows as "???" on the player-facing canvas.
+try {
+	db.exec(`ALTER TABLE char_groups ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`);
+} catch {
+	// column already present
+}
+try {
+	db.exec(`ALTER TABLE characters ADD COLUMN hide_name INTEGER NOT NULL DEFAULT 0`);
+} catch {
+	// column already present
+}
 
 // True when the slug names a sheet this user can see (shared or own).
 export function validSheetSlug(slug: string, userId: number): boolean {
