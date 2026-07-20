@@ -135,15 +135,21 @@
 		gap: 0.2rem;
 		font-size: 0.82rem;
 		color: var(--muted);
+		min-width: 0;
 	}
 	label small {
 		opacity: 0.75;
 	}
+	/* Inputs must shrink with their grid cell — otherwise their intrinsic
+	   width pushes them past the panel border. */
 	input,
 	select,
 	textarea {
 		font: inherit;
 		font-size: 0.88rem;
+		width: 100%;
+		min-width: 0;
+		box-sizing: border-box;
 	}
 	textarea {
 		resize: vertical;
