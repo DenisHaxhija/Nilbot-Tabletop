@@ -1,9 +1,17 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import { confirmDialog } from '$lib/confirm.svelte';
 	import RichText from '$lib/components/RichText.svelte';
 
 	let { data } = $props();
+
+	// Hide the sections/pages columns for a distraction-free page.
+	let navHidden = $state(browser && localStorage.getItem('nb-journal-nav') === '1');
+	function toggleNav() {
+		navHidden = !navHidden;
+		localStorage.setItem('nb-journal-nav', navHidden ? '1' : '0');
+	}
 
 	// OneNote-ish section colors, stable per name.
 	const PALETTE = ['#c86baa', '#7a63c8', '#5b8dd6', '#58a68f', '#c8a24b', '#c0605e', '#6aa84f', '#b07d3c'];
@@ -159,8 +167,13 @@
 	</li>
 {/snippet}
 
-<div class="workspace" style="--sec: {accent}">
-	<aside class="pane sections">
+<div class="workspace" class:nav-hidden={navHidden} style="--sec: {accent}">
+	{#if navHidden}
+		<div class="nav-rail">
+			<button class="rail-btn" title="Show sections and pages" onclick={toggleNav}>☰</button>
+		</div>
+	{/if}
+	<aside class="pane sections" class:hide={navHidden}>
 		<div class="pane-head">Sections</div>
 		<ul>
 			{#each data.sections as s (s.name)}
@@ -216,8 +229,11 @@
 		{/if}
 	</aside>
 
-	<aside class="pane pages">
-		<div class="pane-head head-colored">{viewSection || 'Loose pages'}</div>
+	<aside class="pane pages" class:hide={navHidden}>
+		<div class="pane-head head-colored">
+			<span class="row-label">{viewSection || 'Loose pages'}</span>
+			<button class="mini-op" title="Hide sections and pages" onclick={toggleNav}>⟨</button>
+		</div>
 		<ul>
 			{#each viewPages as p, i (p.id)}
 				{@render pageRow(p, false, i > 0 ? viewPages[i - 1].id : null)}
@@ -308,6 +324,33 @@
 		border-bottom: 2px solid var(--sec);
 		padding-bottom: 0.35rem;
 		font-weight: 600;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.3rem;
+	}
+	.workspace.nav-hidden {
+		grid-template-columns: 2.4rem minmax(0, 1fr);
+	}
+	.pane.hide {
+		display: none;
+	}
+	.nav-rail {
+		border-right: 1px solid var(--border);
+		padding-top: 0.55rem;
+		display: flex;
+		justify-content: center;
+		align-items: flex-start;
+	}
+	.rail-btn {
+		background: transparent;
+		border: none;
+		color: var(--muted);
+		font-size: 0.95rem;
+		padding: 0.2rem 0.4rem;
+	}
+	.rail-btn:hover {
+		color: var(--accent);
 	}
 	.pane ul {
 		list-style: none;

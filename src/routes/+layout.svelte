@@ -3,8 +3,16 @@
 	import '@fontsource/cinzel/700.css';
 	import goblin from '$lib/assets/goblin.png';
 	import { page } from '$app/state';
+	import { browser } from '$app/environment';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	let { children } = $props();
+
+	// Icon-only rail when collapsed; remembered per browser.
+	let collapsed = $state(browser && localStorage.getItem('nb-sidebar') === '1');
+	function toggleSidebar() {
+		collapsed = !collapsed;
+		localStorage.setItem('nb-sidebar', collapsed ? '1' : '0');
+	}
 
 	const links = [
 		{ href: '/notes', label: 'Sessions', icon: '✎' },
@@ -36,34 +44,42 @@
 {#if bare}
 	{@render children()}
 {:else}
-	<div class="shell">
+	<div class="shell" class:rail={collapsed}>
 		<aside class="sidebar">
-			<a class="brand" href="/">
-				<img class="brand-logo" src={goblin} alt="NilBot goblin logo" /> NilBot
+			<a class="brand" href="/" title="NilBot">
+				<img class="brand-logo" src={goblin} alt="NilBot goblin logo" />
+				{#if !collapsed}NilBot{/if}
 			</a>
+			<button
+				class="collapse"
+				title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+				onclick={toggleSidebar}>{collapsed ? '»' : '«'}</button
+			>
 			<nav>
 				{#each links as l (l.href)}
-					<a href={l.href} class:active={page.url.pathname.startsWith(l.href)}>
-						<span class="icon">{l.icon}</span>{l.label}
+					<a href={l.href} title={l.label} class:active={page.url.pathname.startsWith(l.href)}>
+						<span class="icon">{l.icon}</span>{#if !collapsed}<span class="label">{l.label}</span>{/if}
 					</a>
 				{/each}
 			</nav>
 			<div class="sidebar-foot">
 				<a
 					href="/journal"
+					title="Journal"
 					class="settings-link"
 					class:active={page.url.pathname.startsWith('/journal')}
 				>
-					<span class="icon">📖</span>Journal
+					<span class="icon">📖</span>{#if !collapsed}<span class="label">Journal</span>{/if}
 				</a>
 				<a
 					href="/settings"
+					title="Settings"
 					class="settings-link"
 					class:active={page.url.pathname.startsWith('/settings')}
 				>
-					<span class="icon">⚙</span>Settings
+					<span class="icon">⚙</span>{#if !collapsed}<span class="label">Settings</span>{/if}
 				</a>
-				<p>the DM's workbench</p>
+				{#if !collapsed}<p>the DM's workbench</p>{/if}
 			</div>
 		</aside>
 
@@ -144,6 +160,37 @@
 		display: grid;
 		grid-template-columns: 224px 1fr;
 		min-height: 100vh;
+	}
+	.shell.rail {
+		grid-template-columns: 64px 1fr;
+	}
+	.shell.rail .sidebar {
+		padding: 1.1rem 0.5rem;
+		align-items: center;
+	}
+	.shell.rail nav a,
+	.shell.rail .settings-link {
+		justify-content: center;
+		padding: 0.45rem 0;
+		width: 100%;
+	}
+	.collapse {
+		background: transparent;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		color: var(--muted);
+		font-size: 0.85rem;
+		padding: 0.1rem 0.5rem;
+		align-self: flex-end;
+		margin: -0.7rem 0.2rem -0.5rem 0;
+	}
+	.shell.rail .collapse {
+		align-self: center;
+		margin: -0.7rem 0 -0.5rem;
+	}
+	.collapse:hover {
+		color: var(--text);
+		border-color: var(--accent);
 	}
 	.sidebar {
 		background: linear-gradient(180deg, var(--panel) 0%, #1a1d23 100%);
