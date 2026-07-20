@@ -1,0 +1,485 @@
+<script lang="ts">
+	import Token from '$lib/components/Token.svelte';
+	import { cultures, generateName, generateTavern } from '$lib/names';
+	import { invalidateAll } from '$app/navigation';
+	import { confirmDialog } from '$lib/confirm.svelte';
+
+	let { data } = $props();
+
+	// --- Party management ---
+	let addingPc = $state(false);
+	let pcName = $state('');
+	let pcClass = $state('');
+	let pcFileInput: HTMLInputElement | undefined = $state();
+	let pcError = $state('');
+
+	async function addPc(e: SubmitEvent) {
+		e.preventDefault();
+		pcError = '';
+		const form = new FormData();
+		form.set('name', pcName);
+		form.set('class', pcClass);
+		const file = pcFileInput?.files?.[0];
+		if (file) form.set('file', file);
+		const res = await fetch('/api/pcs', { method: 'POST', body: form });
+		const body = await res.json();
+		if (!res.ok) {
+			pcError = body.error ?? 'Failed to add character.';
+			return;
+		}
+		pcName = '';
+		pcClass = '';
+		if (pcFileInput) pcFileInput.value = '';
+		addingPc = false;
+		invalidateAll();
+	}
+
+	async function removePc(id: number, name: string) {
+		const ok = await confirmDialog({
+			title: 'Remove character?',
+			message: `${name} will be removed from the party.`,
+			confirmLabel: 'Remove',
+			danger: true
+		});
+		if (!ok) return;
+		await fetch(`/api/pcs/${id}`, { method: 'DELETE' });
+		invalidateAll();
+	}
+
+	let sparkCulture = $state('Human');
+	let sparks = $state<string[]>([
+		generateName('Human'),
+		generateName('Elf'),
+		generateName('Dwarf'),
+		generateTavern()
+	]);
+	function reroll() {
+		sparks = [
+			generateName(sparkCulture),
+			generateName(sparkCulture),
+			generateName(sparkCulture),
+			generateTavern()
+		];
+	}
+
+	let roll = $state<number | null>(null);
+	let rolling = $state(false);
+	let rollTimer: ReturnType<typeof setInterval>;
+	function rollD20() {
+		if (rolling) return;
+		rolling = true;
+		let ticks = 0;
+		rollTimer = setInterval(() => {
+			roll = 1 + Math.floor(Math.random() * 20);
+			if (++ticks >= 10) {
+				clearInterval(rollTimer);
+				rolling = false;
+			}
+		}, 65);
+	}
+</script>
+
+<svelte:head><title>NilBot — DM's workbench</title></svelte:head>
+
+<div class="top">
+	<div>
+		<h1>Welcome back, {data.dmName}</h1>
+		<p class="tagline">Write the session — NilBot handles the rest.</p>
+	</div>
+	<form method="POST" action="/notes?/create">
+		<button class="primary" type="submit">＋ New session</button>
+	</form>
+</div>
+
+<div class="grid">
+	{#if data.lastSession}
+		<a class="panel continue" href="/notes/{data.lastSession.id}">
+			<p class="panel-label">Jump back in</p>
+			<h2>{data.lastSession.title}</h2>
+			<p class="preview">{data.lastSession.preview || 'Empty session — start writing.'}</p>
+			<small>last edited {data.lastSession.updated_at}</small>
+		</a>
+	{:else}
+		<div class="panel continue">
+			<p class="panel-label">Getting started</p>
+			<h2>No sessions yet</h2>
+			<p class="preview">
+				Create your first session, write your prep like you would anywhere — then let the
+				Battle Extractor build the encounters for you.
+			</p>
+		</div>
+	{/if}
+
+	<div class="panel dice-panel">
+		<p class="panel-label">D20</p>
+		<button
+			class="die"
+			class:rolling
+			class:nat20={!rolling && roll === 20}
+			class:nat1={!rolling && roll === 1}
+			onclick={rollD20}
+			title="Roll a d20"
+		>
+			<svg viewBox="0 0 64 64" aria-hidden="true">
+				<polygon points="32,4 56,17 56,47 32,60 8,47 8,17" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" />
+				<polygon points="32,15 46,39 18,39" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+			</svg>
+			<span class="die-num">{roll ?? '?'}</span>
+		</button>
+		<p class="die-caption">
+			{#if rolling}
+				rolling…
+			{:else if roll === 20}
+				Natural 20!
+			{:else if roll === 1}
+				Natural 1. Ouch.
+			{:else if roll !== null}
+				You rolled {roll}
+			{:else}
+				Click the die
+			{/if}
+		</p>
+	</div>
+
+	<div class="panel">
+		<p class="panel-label">Your party</p>
+		{#if data.pcs.length === 0 && !addingPc}
+			<p class="empty">No characters yet — add your players so their tokens appear on battle maps.</p>
+		{/if}
+		<div class="party-grid">
+			{#each data.pcs as pc (pc.id)}
+				<div class="pc">
+					{#if pc.img}
+						<img class="pc-img" src={pc.img} alt={pc.name} />
+					{:else}
+						<Token name={pc.name} type={null} px={52} />
+					{/if}
+					<b>{pc.name}</b>
+					{#if pc.class}<small>{pc.class}</small>{/if}
+					<button class="pc-del" title="Remove" onclick={() => removePc(pc.id, pc.name)}>✕</button>
+				</div>
+			{/each}
+		</div>
+		{#if addingPc}
+			<form class="pc-form" onsubmit={addPc}>
+				<input bind:value={pcName} placeholder="Character name" required />
+				<input bind:value={pcClass} placeholder="Class (optional)" />
+				<input type="file" bind:this={pcFileInput} accept=".png,.jpg,.jpeg,.webp,.gif" />
+				{#if pcError}<p class="err">{pcError}</p>{/if}
+				<div class="pc-form-row">
+					<button type="submit">Add</button>
+					<button type="button" onclick={() => (addingPc = false)}>Cancel</button>
+				</div>
+			</form>
+		{:else}
+			<button class="more-btn" onclick={() => (addingPc = true)}>＋ Add character</button>
+		{/if}
+	</div>
+
+	{#if data.spotlight}
+		<a class="panel spotlight" href="/bestiary/{encodeURIComponent(data.spotlight.slug)}">
+			<p class="panel-label">Monster of the day</p>
+			<div class="spot-row">
+				<Token
+					name={data.spotlight.name}
+					type={data.spotlight.type}
+					px={72}
+					img={data.spotlight.img}
+				/>
+				<div>
+					<h2>{data.spotlight.name}</h2>
+					<p class="muted">
+						CR {data.spotlight.cr_text ?? '?'} · {data.spotlight.size ?? ''}
+						{data.spotlight.type ?? ''}
+					</p>
+					<p class="muted src">{data.spotlight.source}</p>
+				</div>
+			</div>
+		</a>
+	{/if}
+
+	<div class="panel">
+		<p class="panel-label">Name sparks</p>
+		<div class="spark-controls">
+			<select bind:value={sparkCulture} onchange={reroll}>
+				{#each cultures as c (c)}
+					<option value={c}>{c}</option>
+				{/each}
+			</select>
+			<button onclick={reroll}>↻ Reroll</button>
+		</div>
+		<ul class="sparks">
+			{#each sparks as s, i (i)}
+				<li class:tavern={i === 3}>{s}{i === 3 ? ' (tavern)' : ''}</li>
+			{/each}
+		</ul>
+		<a class="more" href="/names">full generator →</a>
+	</div>
+</div>
+
+<div class="stats">
+	<a href="/notes"><b>{data.counts.notes}</b> sessions</a>
+	<a href="/battles"><b>{data.counts.battles}</b> battles</a>
+	<a href="/maps"><b>{data.counts.maps}</b> maps</a>
+	<a href="/bestiary"><b>{data.counts.monsters.toLocaleString()}</b> monsters</a>
+	<span><b>{data.counts.tokens}</b> with token art</span>
+</div>
+
+<style>
+	.top {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+	h1 {
+		margin-bottom: 0.1rem;
+	}
+	.tagline {
+		color: var(--muted);
+		font-style: italic;
+		margin: 0;
+	}
+	.primary {
+		background: var(--accent-2);
+		border-color: var(--accent-2);
+		font-weight: 600;
+	}
+
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+		gap: 1rem;
+		margin: 1.5rem 0;
+	}
+	.panel {
+		background: var(--panel);
+		border: 1px solid var(--border);
+		border-radius: 10px;
+		padding: 1rem 1.2rem;
+		display: block;
+		color: var(--text);
+		text-decoration: none;
+	}
+	a.panel {
+		transition: border-color 0.15s ease, transform 0.15s ease;
+	}
+	a.panel:hover {
+		border-color: var(--accent);
+		transform: translateY(-2px);
+	}
+	.panel-label {
+		text-transform: uppercase;
+		font-size: 0.72rem;
+		letter-spacing: 0.09em;
+		color: var(--muted);
+		margin: 0 0 0.4rem;
+	}
+	.panel h2 {
+		margin: 0 0 0.3rem;
+		color: var(--accent);
+		font-size: 1.25rem;
+	}
+	.preview {
+		color: var(--muted);
+		font-size: 0.92rem;
+		margin: 0 0 0.4rem;
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+	small,
+	.muted {
+		color: var(--muted);
+	}
+	.empty {
+		color: var(--muted);
+		font-size: 0.92rem;
+	}
+
+	.dice-panel {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+	}
+	.dice-panel .panel-label {
+		align-self: flex-start;
+	}
+	.die {
+		position: relative;
+		background: transparent;
+		border: none;
+		color: var(--accent);
+		width: 120px;
+		height: 120px;
+		padding: 0;
+		transition: transform 0.15s ease, color 0.2s ease;
+	}
+	.die:hover {
+		transform: scale(1.06);
+		border: none;
+	}
+	.die svg {
+		width: 100%;
+		height: 100%;
+	}
+	.die.rolling {
+		animation: shake 0.13s infinite;
+	}
+	.die.nat20 {
+		color: #d4a24e;
+		filter: drop-shadow(0 0 10px rgba(212, 162, 78, 0.65));
+	}
+	.die.nat1 {
+		color: var(--danger);
+		filter: drop-shadow(0 0 10px rgba(224, 108, 91, 0.5));
+	}
+	.die-num {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-family: var(--serif);
+		font-size: 2rem;
+		font-weight: 700;
+	}
+	.die-caption {
+		color: var(--muted);
+		font-style: italic;
+		margin: 0.4rem 0 0;
+		font-size: 0.9rem;
+	}
+	@keyframes shake {
+		0% { transform: rotate(-4deg); }
+		50% { transform: rotate(4deg); }
+		100% { transform: rotate(-4deg); }
+	}
+
+	.party-grid {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.9rem;
+		margin-bottom: 0.6rem;
+	}
+	.pc {
+		position: relative;
+		display: grid;
+		justify-items: center;
+		gap: 0.1rem;
+		width: 84px;
+		text-align: center;
+	}
+	.pc-img {
+		width: 52px;
+		height: 52px;
+		border-radius: 50%;
+		object-fit: cover;
+		border: 2px solid #3d6b9e;
+	}
+	.pc b {
+		font-size: 0.85rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		max-width: 84px;
+	}
+	.pc small {
+		color: var(--muted);
+		font-size: 0.72rem;
+	}
+	.pc-del {
+		position: absolute;
+		top: -6px;
+		right: 2px;
+		background: transparent;
+		border: none;
+		color: var(--muted);
+		font-size: 0.75rem;
+		padding: 0.1rem;
+		opacity: 0;
+	}
+	.pc:hover .pc-del {
+		opacity: 1;
+	}
+	.pc-del:hover {
+		color: var(--danger);
+	}
+	.pc-form {
+		display: grid;
+		gap: 0.45rem;
+	}
+	.pc-form-row {
+		display: flex;
+		gap: 0.5rem;
+	}
+	.err {
+		color: var(--danger);
+		font-size: 0.85rem;
+		margin: 0;
+	}
+	.more-btn {
+		font-size: 0.85rem;
+		padding: 0.3rem 0.7rem;
+	}
+	.spot-row {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+	.spot-row h2 {
+		margin: 0;
+	}
+	.spot-row p {
+		margin: 0.1rem 0;
+	}
+	.src {
+		font-size: 0.8rem;
+	}
+
+	.spark-controls {
+		display: flex;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+	}
+	.sparks {
+		list-style: none;
+		margin: 0 0 0.4rem;
+		padding: 0;
+		line-height: 1.9;
+		font-family: var(--serif);
+		font-size: 1.05rem;
+	}
+	.sparks .tavern {
+		color: var(--muted);
+		font-style: italic;
+	}
+	.more {
+		font-size: 0.85rem;
+		text-decoration: none;
+	}
+
+	.stats {
+		display: flex;
+		gap: 1.5rem;
+		flex-wrap: wrap;
+		border-top: 1px solid var(--border);
+		padding-top: 0.9rem;
+		color: var(--muted);
+		font-size: 0.9rem;
+	}
+	.stats a {
+		color: var(--muted);
+		text-decoration: none;
+	}
+	.stats a:hover {
+		color: var(--text);
+	}
+	.stats b {
+		color: var(--accent);
+		font-weight: 700;
+	}
+</style>

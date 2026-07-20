@@ -1,0 +1,20 @@
+services:
+  nilbot:
+    build: .
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:3000:3000'
+    environment:
+      - ORIGIN=${ORIGIN}
+      - BODY_SIZE_LIMIT=104857600
+      # Include the mounted Claude CLI on PATH for the LLM features.
+      - PATH=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    volumes:
+      # All user data (SQLite DB, maps, tokens, portraits, music) lives outside
+      # the container — rebuilds and upgrades never touch it.
+      - ./data:/app/data
+      # Claude CLI + subscription credentials from the host (Battle Extractor,
+      # Sheet Builder). Never baked into the image.
+      - /root/.local:/root/.local
+      - /root/.claude:/root/.claude
+      - /root/.claude.json:/root/.claude.json
