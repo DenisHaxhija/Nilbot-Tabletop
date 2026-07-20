@@ -8,6 +8,7 @@
 
 	const links = [
 		{ href: '/notes', label: 'Sessions', icon: '✎' },
+		{ href: '/journal', label: 'Journal', icon: '📖' },
 		{ href: '/battles', label: 'Battles', icon: '⚔' },
 		{ href: '/present', label: 'Battle Ready', icon: '📺' },
 		{ href: '/characters', label: 'Characters', icon: '🎭' },

@@ -279,6 +279,21 @@ CREATE TABLE IF NOT EXISTS pcs (
 );
 `);
 
+// DM journal: freeform reference pages (spells, pantheons, lore…) organized
+// into OneNote-style sections. Sections exist implicitly via their pages.
+db.exec(`
+CREATE TABLE IF NOT EXISTS journal_pages (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  section TEXT NOT NULL DEFAULT '',
+  content TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_journal_user_section ON journal_pages(user_id, section);
+`);
+
 // Settings are per-user; rebuild the table if it predates that.
 const settingsCols = db.prepare(`PRAGMA table_info(settings)`).all() as { name: string }[];
 if (settingsCols.length > 0 && !settingsCols.some((c) => c.name === 'user_id')) {
