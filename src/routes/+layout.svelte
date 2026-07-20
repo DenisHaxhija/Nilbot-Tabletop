@@ -8,7 +8,6 @@
 
 	const links = [
 		{ href: '/notes', label: 'Sessions', icon: '✎' },
-		{ href: '/journal', label: 'Journal', icon: '📖' },
 		{ href: '/battles', label: 'Battles', icon: '⚔' },
 		{ href: '/present', label: 'Battle Ready', icon: '📺' },
 		{ href: '/characters', label: 'Characters', icon: '🎭' },
@@ -18,7 +17,8 @@
 		{ href: '/builder', label: 'Sheet Builder', icon: '✦' },
 		{ href: '/shop', label: 'Shop', icon: '🛒' },
 		{ href: '/music', label: 'Music', icon: '♪' },
-		{ href: '/names', label: 'Name Generator', icon: '⚄' }
+		{ href: '/names', label: 'Name Generator', icon: '⚄' },
+		{ href: '/journal', label: 'Journal', icon: '📖' }
 	];
 
 	const bare = $derived(

@@ -1,23 +1,31 @@
 import { db } from '$lib/server/db';
 
-export function load({ locals }) {
+export function load({ url, locals }) {
 	const uid = locals.user!.id;
 	const pages = db
 		.prepare(
 			`SELECT id, title, section, updated_at FROM journal_pages
-			 WHERE user_id = ? ORDER BY section, title COLLATE NOCASE`
+			 WHERE user_id = ? ORDER BY title COLLATE NOCASE`
 		)
 		.all(uid) as { id: number; title: string; section: string; updated_at: string }[];
 
-	// Group into OneNote-style sections; '' sorts last as "Loose pages".
-	const bySection = new Map<string, typeof pages>();
-	for (const p of pages) {
-		if (!bySection.has(p.section)) bySection.set(p.section, []);
-		bySection.get(p.section)!.push(p);
-	}
-	const sections = [...bySection.entries()]
-		.map(([name, ps]) => ({ name, pages: ps }))
-		.sort((a, b) => (a.name === '' ? 1 : b.name === '' ? -1 : a.name.localeCompare(b.name)));
+	// Sections in alphabetical order; loose ('') pages last.
+	const names = [...new Set(pages.map((p) => p.section))].sort((a, b) =>
+		a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)
+	);
+	const sections = names.map((name) => ({
+		name,
+		pages: pages.filter((p) => p.section === name)
+	}));
 
-	return { sections };
+	// Selected page: ?p=<id>, else the first page of the first section.
+	const wanted = Number(url.searchParams.get('p'));
+	const selectedId = pages.some((p) => p.id === wanted) ? wanted : (sections[0]?.pages[0]?.id ?? null);
+	const selected = selectedId
+		? (db
+				.prepare('SELECT id, title, section, content FROM journal_pages WHERE id = ? AND user_id = ?')
+				.get(selectedId, uid) as { id: number; title: string; section: string; content: string })
+		: null;
+
+	return { sections, selected };
 }
