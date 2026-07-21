@@ -29,21 +29,30 @@ export function encounterMultiplier(count: number): number {
 	return 4;
 }
 
-export type Difficulty = 'trivial' | 'easy' | 'medium' | 'hard' | 'deadly';
+export type Difficulty = 'trivial' | 'easy' | 'medium' | 'hard' | 'deadly' | 'impossible';
 
-export function battleDifficulty(xps: number[], partyLevel: number, partySize: number) {
+// Allies fighting alongside the party count as extra party members for the
+// thresholds (allyCount), not as enemy XP. "Impossible" is 2× deadly.
+export function battleDifficulty(
+	xps: number[],
+	partyLevel: number,
+	partySize: number,
+	allyCount = 0
+) {
 	const totalXp = xps.reduce((a, b) => a + b, 0);
 	const adjustedXp = Math.round(totalXp * encounterMultiplier(xps.length));
 	const t = THRESHOLDS[Math.min(20, Math.max(1, Math.round(partyLevel)))];
-	const size = Math.max(1, Math.round(partySize));
+	const size = Math.max(1, Math.round(partySize) + Math.max(0, allyCount));
 	const thresholds = {
 		easy: t[0] * size,
 		medium: t[1] * size,
 		hard: t[2] * size,
-		deadly: t[3] * size
+		deadly: t[3] * size,
+		impossible: t[3] * size * 2
 	};
 	let difficulty: Difficulty = 'trivial';
-	if (adjustedXp >= thresholds.deadly) difficulty = 'deadly';
+	if (adjustedXp >= thresholds.impossible) difficulty = 'impossible';
+	else if (adjustedXp >= thresholds.deadly) difficulty = 'deadly';
 	else if (adjustedXp >= thresholds.hard) difficulty = 'hard';
 	else if (adjustedXp >= thresholds.medium) difficulty = 'medium';
 	else if (adjustedXp >= thresholds.easy) difficulty = 'easy';

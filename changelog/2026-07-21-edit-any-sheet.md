@@ -24,9 +24,14 @@ tracker — DMG math (XP × count multiplier vs party thresholds) computed
 from the monsters/NPCs currently on the board, updating as you add and
 remove tokens. Shows the difficulty badge, adjusted XP, an editable
 party level × size (persisted per battle in the layout), and a zone bar
-(trivial→deadly) with a marker. The threshold/multiplier tables moved
-to `$lib/xp` so the extractor and the gauge share one source; monster
-search results and battle tokens now carry `xp`.
+(trivial→impossible) with a marker. The threshold/multiplier tables
+moved to `$lib/xp` so the extractor and the gauge share one source;
+monster search results and battle tokens now carry `xp`.
+
+Every non-PC combatant has a **friend-or-foe toggle** (⚔/🛡) in the
+tracker: allies are excluded from enemy XP and instead count as extra
+party members for the thresholds, easing the meter. A sixth difficulty
+tier, **impossible** (2× deadly), caps the scale.
 
 ## Why
 Classic DM move: "a goblin, but tougher and it explodes" shouldn't

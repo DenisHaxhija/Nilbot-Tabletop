@@ -188,26 +188,38 @@
 		layout.party = { level: gaugeLevel, size: gaugeSize };
 		persist();
 	}
+	const allyCount = $derived(
+		layout
+			? layout.tokens.filter((t: any) => (t.kind === 'monster' || t.kind === 'npc') && t.ally)
+					.length
+			: 0
+	);
 	const gauge = $derived.by(() => {
 		if (!layout) return null;
 		const xps = layout.tokens
-			.filter((t: any) => (t.kind === 'monster' || t.kind === 'npc') && t.xp)
+			.filter((t: any) => (t.kind === 'monster' || t.kind === 'npc') && !t.ally && t.xp)
 			.map((t: any) => t.xp as number);
-		return battleDifficulty(xps, gaugeLevel, gaugeSize);
+		return battleDifficulty(xps, gaugeLevel, gaugeSize, allyCount);
 	});
-	// Piecewise marker position matching the zone bands: each threshold
-	// boundary sits at a fixed 20% stop (deadly zone runs 60→100%).
+	function toggleAlly(t: any) {
+		t.ally = !t.ally;
+		persist();
+	}
+	// Piecewise marker position: six equal bands, each threshold boundary on
+	// a band edge (impossible = 2× deadly; the last band runs to 4× deadly).
 	const gaugePct = $derived.by(() => {
 		if (!gauge) return 0;
 		const x = gauge.adjustedXp;
 		const t = gauge.thresholds;
+		const B = 100 / 6;
 		const seg = (lo: number, hi: number, from: number, to: number) =>
 			from + ((x - lo) / (hi - lo)) * (to - from);
-		if (x < t.easy) return seg(0, t.easy, 0, 20);
-		if (x < t.medium) return seg(t.easy, t.medium, 20, 40);
-		if (x < t.hard) return seg(t.medium, t.hard, 40, 60);
-		if (x < t.deadly) return seg(t.hard, t.deadly, 60, 80);
-		return Math.min(100, seg(t.deadly, t.deadly * 2, 80, 100));
+		if (x < t.easy) return seg(0, t.easy, 0, B);
+		if (x < t.medium) return seg(t.easy, t.medium, B, 2 * B);
+		if (x < t.hard) return seg(t.medium, t.hard, 2 * B, 3 * B);
+		if (x < t.deadly) return seg(t.hard, t.deadly, 3 * B, 4 * B);
+		if (x < t.impossible) return seg(t.deadly, t.impossible, 4 * B, 5 * B);
+		return Math.min(100, seg(t.impossible, t.impossible * 2, 5 * B, 100));
 	});
 
 	// --- Encounter tracker (initiative, HP, turns) ---
@@ -501,15 +513,19 @@
 					<span class="gauge-party">
 						lvl <input type="number" min="1" max="20" bind:value={gaugeLevel} onchange={persistParty} />
 						× <input type="number" min="1" max="10" bind:value={gaugeSize} onchange={persistParty} />
+						{#if allyCount > 0}
+							<span class="allies" title="{allyCount} all{allyCount === 1 ? 'y' : 'ies'} fighting with the party — counted as extra party members">+{allyCount}🛡</span>
+						{/if}
 					</span>
 				</div>
-				<div class="gauge-bar" title="easy {gauge.thresholds.easy.toLocaleString()} · medium {gauge.thresholds.medium.toLocaleString()} · hard {gauge.thresholds.hard.toLocaleString()} · deadly {gauge.thresholds.deadly.toLocaleString()} XP">
+				<div class="gauge-bar" title="easy {gauge.thresholds.easy.toLocaleString()} · medium {gauge.thresholds.medium.toLocaleString()} · hard {gauge.thresholds.hard.toLocaleString()} · deadly {gauge.thresholds.deadly.toLocaleString()} · impossible {gauge.thresholds.impossible.toLocaleString()} XP">
 					<div class="zones">
 						<span class="z-trivial"></span>
 						<span class="z-easy"></span>
 						<span class="z-medium"></span>
 						<span class="z-hard"></span>
 						<span class="z-deadly"></span>
+						<span class="z-impossible"></span>
 					</div>
 					<div class="marker" style="left:{gaugePct}%"></div>
 				</div>
@@ -534,6 +550,16 @@
 									: tokenColor(t.type)}"
 					></span>
 					<span class="cname" title={t.name}>{t.name}{t.label ? ` ${t.label}` : ''}</span>
+					{#if t.kind !== 'pc'}
+						<button
+							class="ff"
+							class:ally={t.ally}
+							title={t.ally
+								? 'Ally — fights with the party (counted in the gauge as an extra party member). Click to make foe.'
+								: 'Foe — counts toward encounter XP. Click to make ally.'}
+							onclick={() => toggleAlly(t)}>{t.ally ? '🛡' : '⚔'}</button
+						>
+					{/if}
 					<input
 						class="init"
 						type="number"
@@ -960,6 +986,7 @@
 	.diff.medium { background: #2f4a63; color: #9ec7ef; }
 	.diff.hard { background: #5d4426; color: #e6b96b; }
 	.diff.deadly { background: #5d2a26; color: #ef9c93; }
+	.diff.impossible { background: #43244f; color: #d9a0e8; }
 	.gauge-xp {
 		color: var(--text);
 		font-weight: 600;
@@ -996,6 +1023,25 @@
 	.z-medium { background: #3d6b9e; }
 	.z-hard { background: #b07d3c; }
 	.z-deadly { background: #b0413e; }
+	.z-impossible { background: #7e4a94; }
+	.allies {
+		color: var(--accent);
+		font-size: 0.78rem;
+	}
+	.ff {
+		background: transparent;
+		border: none;
+		padding: 0 0.15rem;
+		font-size: 0.8rem;
+		opacity: 0.55;
+		flex-shrink: 0;
+	}
+	.ff:hover {
+		opacity: 1;
+	}
+	.ff.ally {
+		opacity: 1;
+	}
 	.marker {
 		position: absolute;
 		top: -3px;
