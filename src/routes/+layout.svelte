@@ -14,18 +14,39 @@
 		localStorage.setItem('nb-sidebar', collapsed ? '1' : '0');
 	}
 
-	const links = [
-		{ href: '/notes', label: 'Sessions', icon: '✎' },
-		{ href: '/battles', label: 'Battles', icon: '⚔' },
-		{ href: '/present', label: 'Battle Ready', icon: '📺' },
-		{ href: '/characters', label: 'Characters', icon: '🎭' },
-		{ href: '/maps', label: 'Battle Maps', icon: '🗺' },
-		{ href: '/worldmaps', label: 'World Maps', icon: '🌍' },
-		{ href: '/bestiary', label: 'Bestiary', icon: '🐉' },
-		{ href: '/builder', label: 'Sheet Builder', icon: '✦' },
-		{ href: '/shop', label: 'Shop', icon: '🛒' },
-		{ href: '/music', label: 'Music', icon: '♪' },
-		{ href: '/names', label: 'Name Generator', icon: '⚄' }
+	// Grouped by workflow: write prep → run combat → look things up →
+	// manage the campaign world → generators.
+	const sections = [
+		{
+			label: '',
+			items: [{ href: '/notes', label: 'Sessions', icon: '✎' }]
+		},
+		{
+			label: 'Combat',
+			items: [
+				{ href: '/battles', label: 'Battles', icon: '⚔' },
+				{ href: '/present', label: 'Battle Ready', icon: '📺' },
+				{ href: '/maps', label: 'Battle Maps', icon: '🗺' }
+			]
+		},
+		{
+			label: 'Library',
+			items: [
+				{ href: '/bestiary', label: 'Bestiary', icon: '🐉' },
+				{ href: '/spells', label: 'Spells', icon: '✨' },
+				{ href: '/builder', label: 'Sheet Builder', icon: '✦' }
+			]
+		},
+		{
+			label: 'World',
+			items: [
+				{ href: '/characters', label: 'Characters', icon: '🎭' },
+				{ href: '/worldmaps', label: 'World Maps', icon: '🌍' },
+				{ href: '/shop', label: 'Shop', icon: '🛒' },
+				{ href: '/music', label: 'Music', icon: '♪' },
+				{ href: '/names', label: 'Name Generator', icon: '⚄' }
+			]
+		}
 	];
 
 	const bare = $derived(
@@ -58,10 +79,19 @@
 				>
 			</div>
 			<nav>
-				{#each links as l (l.href)}
-					<a href={l.href} title={l.label} class:active={page.url.pathname.startsWith(l.href)}>
-						<span class="icon">{l.icon}</span>{#if !collapsed}<span class="label">{l.label}</span>{/if}
-					</a>
+				{#each sections as sec (sec.label)}
+					{#if sec.label}
+						{#if collapsed}
+							<span class="nav-divider"></span>
+						{:else}
+							<span class="nav-caption">{sec.label}</span>
+						{/if}
+					{/if}
+					{#each sec.items as l (l.href)}
+						<a href={l.href} title={l.label} class:active={page.url.pathname.startsWith(l.href)}>
+							<span class="icon">{l.icon}</span>{#if !collapsed}<span class="label">{l.label}</span>{/if}
+						</a>
+					{/each}
 				{/each}
 			</nav>
 			<div class="sidebar-foot">
@@ -231,6 +261,20 @@
 	nav {
 		display: grid;
 		gap: 0.2rem;
+	}
+	.nav-caption {
+		font-size: 0.68rem;
+		text-transform: uppercase;
+		letter-spacing: 0.09em;
+		color: var(--muted);
+		opacity: 0.75;
+		padding: 0.7rem 0.6rem 0.15rem;
+	}
+	.nav-divider {
+		display: block;
+		height: 1px;
+		background: var(--border);
+		margin: 0.5rem 0.4rem;
 	}
 	nav a {
 		display: flex;
