@@ -11,9 +11,16 @@
 
 <svelte:head><title>Settings · NilBot</title></svelte:head>
 
-<h1>Settings</h1>
+<div class="wrap">
+	<h1>Settings</h1>
 
-<div class="panels">
+	<div class="account-row">
+		<span>Logged in as <b>{data.username}</b></span>
+		<form method="POST" action="?/logout">
+			<button type="submit" class="logout">Log out</button>
+		</form>
+	</div>
+
 	<section class="panel">
 		<h2>General</h2>
 		<form method="POST" action="?/general">
@@ -40,53 +47,66 @@
 	</section>
 
 	<section class="panel">
+		<h2>Storage</h2>
+		<div class="storage-line">
+			<span><b>{fmt(usedMb)}</b> of {fmt(capMb)} used</span>
+			<span class="muted">{Math.round(usedPct)}%</span>
+		</div>
+		<div class="bar" role="progressbar" aria-valuenow={Math.round(usedPct)} aria-valuemin={0} aria-valuemax={100}>
+			<div class="fill" class:warn={usedPct > 85} style="width:{usedPct}%"></div>
+		</div>
+		<small>
+			Imported maps, portraits, music and custom tokens count toward your space. Uploads are
+			compressed automatically — delete maps or songs you no longer use to free space.
+		</small>
+	</section>
+
+	<section class="panel">
 		<h2>Password</h2>
 		<form method="POST" action="?/password">
-			<label>
-				Current password
-				<input name="current" type="password" required autocomplete="current-password" />
-			</label>
-			<label>
-				New password
-				<input name="next" type="password" required minlength="6" autocomplete="new-password" />
-			</label>
-			<label>
-				Confirm new password
-				<input name="confirm" type="password" required autocomplete="new-password" />
-			</label>
+			<div class="row">
+				<label>
+					Current password
+					<input name="current" type="password" required autocomplete="current-password" />
+				</label>
+			</div>
+			<div class="row">
+				<label>
+					New password
+					<input name="next" type="password" required minlength="6" autocomplete="new-password" />
+				</label>
+				<label>
+					Confirm new password
+					<input name="confirm" type="password" required autocomplete="new-password" />
+				</label>
+			</div>
 			{#if form?.password}<p class="err">{form.password}</p>{/if}
 			<button type="submit">Change password</button>
 			<small>You'll be asked to log in again afterwards.</small>
 		</form>
 	</section>
-
-	<section class="panel">
-		<h2>Storage</h2>
-		<p class="muted">
-			<b>{fmt(usedMb)}</b> of {fmt(capMb)} used — imported maps, portraits, music and custom tokens
-			count toward your space.
-		</p>
-		<div class="bar" role="progressbar" aria-valuenow={Math.round(usedPct)} aria-valuemin={0} aria-valuemax={100}>
-			<div class="fill" class:warn={usedPct > 85} style="width:{usedPct}%"></div>
-		</div>
-		<small>Uploads are compressed automatically. Delete maps or songs you no longer use to free space.</small>
-	</section>
-
-	<section class="panel">
-		<h2>Account</h2>
-		<p class="muted">Logged in as <b>{data.username}</b>.</p>
-		<form method="POST" action="?/logout">
-			<button type="submit" class="logout">Log out</button>
-		</form>
-	</section>
 </div>
 
 <style>
-	.panels {
+	.wrap {
+		max-width: 620px;
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 		gap: 1rem;
-		max-width: 980px;
+	}
+	h1 {
+		margin-bottom: 0;
+	}
+	.account-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.75rem;
+		color: var(--muted);
+		border-bottom: 1px solid var(--border);
+		padding-bottom: 0.9rem;
+	}
+	.account-row b {
+		color: var(--text);
 	}
 	.panel {
 		background: var(--panel);
@@ -97,7 +117,7 @@
 	h2 {
 		margin-top: 0;
 		color: var(--accent);
-		font-size: 1.15rem;
+		font-size: 1.1rem;
 	}
 	form {
 		display: grid;
@@ -145,13 +165,19 @@
 	.muted {
 		color: var(--muted);
 	}
+	.storage-line {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		margin-bottom: 0.4rem;
+	}
 	.bar {
 		height: 10px;
 		background: var(--panel-2);
 		border: 1px solid var(--border);
 		border-radius: 99px;
 		overflow: hidden;
-		margin: 0.4rem 0 0.6rem;
+		margin-bottom: 0.6rem;
 	}
 	.fill {
 		height: 100%;
