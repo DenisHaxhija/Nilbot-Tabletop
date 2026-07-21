@@ -69,7 +69,20 @@ export async function POST({ request, locals }) {
 		rowId = info.lastInsertRowid;
 	}
 
+	// Forking a shared sheet: carry the shared token art over unless the user
+	// uploads their own. Shared tokens are instance assets (plain filenames,
+	// no '/'), so this copies a reference, not a file — no quota impact.
+	const sourceSlug = String(form.get('source_slug') ?? '').trim();
 	const file = form.get('file');
+	if (!editSlug && sourceSlug && !(file instanceof File && file.size > 0)) {
+		const src = db
+			.prepare('SELECT token FROM monsters WHERE slug = ? AND (user_id IS NULL OR user_id = ?)')
+			.get(sourceSlug, uid) as { token: string | null } | undefined;
+		if (src?.token && !src.token.includes('/')) {
+			db.prepare('UPDATE monsters SET token = ? WHERE id = ?').run(src.token, rowId);
+		}
+	}
+
 	if (file instanceof File && file.size > 0) {
 		try {
 			const stored = await storeUserImage(uid, 'tokens', rowId, file, prevToken);

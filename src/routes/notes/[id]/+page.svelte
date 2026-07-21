@@ -55,6 +55,32 @@
 
 	let partyLevel = $state(data.partyDefaults.level);
 	let partySize = $state(data.partyDefaults.size);
+
+	// Manual battle creation for instances without the claude CLI.
+	let creatingByHand = $state(false);
+	async function createByHand() {
+		if (creatingByHand) return;
+		creatingByHand = true;
+		try {
+			const res = await fetch('/api/battles', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					noteId: data.note.id,
+					encounter: {
+						title: `${title || 'Session'} — battle`,
+						creatures: [],
+						partyLevel,
+						partySize
+					}
+				})
+			});
+			const body = await res.json();
+			if (res.ok) window.location.href = `/battles/${data.note.id}/${body.id}`;
+		} finally {
+			creatingByHand = false;
+		}
+	}
 	let suggesting = $state(false);
 	let suggestError = $state('');
 	let encounters = $state<any[]>([]);
@@ -195,6 +221,11 @@
 		<button class="suggest" onclick={suggest} disabled={suggesting}>
 			{suggesting ? 'Reading your notes…' : '⚔ Extract battles'}
 		</button>
+		<p class="byhand-note">
+			No AI set up? <button class="byhand" onclick={createByHand} disabled={creatingByHand}>
+				＋ build a battle by hand</button
+			> — it starts empty and you add creatures on the map.
+		</p>
 
 		{#if suggestError}<p class="err">{suggestError}</p>{/if}
 		{#if encounters.length}
@@ -341,6 +372,20 @@
 	}
 	.workspace.solo {
 		grid-template-columns: 1fr;
+	}
+	.byhand-note {
+		color: var(--muted);
+		font-size: 0.82rem;
+		margin: 0.5rem 0 0;
+		line-height: 1.5;
+	}
+	.byhand {
+		background: transparent;
+		border: none;
+		color: var(--accent);
+		padding: 0;
+		font-size: 0.82rem;
+		text-decoration: underline;
 	}
 	.workspace.solo .panel {
 		display: none;

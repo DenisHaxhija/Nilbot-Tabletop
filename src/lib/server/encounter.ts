@@ -1,30 +1,13 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { db } from './db';
+import { THRESHOLDS, encounterMultiplier as multiplier } from '$lib/xp';
 
 const execFileP = promisify(execFile);
 
 // --- Deterministic encounter math (DMG 2014) ---------------------------------
-
-// XP thresholds per character level: [easy, medium, hard, deadly]
-const THRESHOLDS: Record<number, [number, number, number, number]> = {
-	1: [25, 50, 75, 100], 2: [50, 100, 150, 200], 3: [75, 150, 225, 400],
-	4: [125, 250, 375, 500], 5: [250, 500, 750, 1100], 6: [300, 600, 900, 1400],
-	7: [350, 750, 1100, 1700], 8: [450, 900, 1400, 2100], 9: [550, 1100, 1600, 2400],
-	10: [600, 1200, 1900, 2800], 11: [800, 1600, 2400, 3600], 12: [1000, 2000, 3000, 4500],
-	13: [1100, 2200, 3400, 5100], 14: [1250, 2500, 3800, 5700], 15: [1400, 2800, 4300, 6400],
-	16: [1600, 3200, 4800, 7200], 17: [2000, 3900, 5900, 8800], 18: [2100, 4200, 6300, 9500],
-	19: [2400, 4900, 7300, 10900], 20: [2800, 5700, 8500, 12700]
-};
-
-function multiplier(count: number): number {
-	if (count <= 1) return 1;
-	if (count === 2) return 1.5;
-	if (count <= 6) return 2;
-	if (count <= 10) return 2.5;
-	if (count <= 14) return 3;
-	return 4;
-}
+// Threshold/multiplier tables live in $lib/xp so the battle builder's live
+// gauge uses the same numbers.
 
 export interface MatchedCreature {
 	requested: string;

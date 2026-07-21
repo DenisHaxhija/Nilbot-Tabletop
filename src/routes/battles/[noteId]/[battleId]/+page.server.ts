@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, getSetting } from '$lib/server/db';
 import { tokenCells } from '$lib/token';
 
 export function load({ params, locals }) {
@@ -30,13 +30,13 @@ export function load({ params, locals }) {
 			.get(slug, uid) as { token: string | null } | undefined;
 		return row?.token ? `/api/token/${encodeURIComponent(slug)}` : null;
 	};
-	// Combat stats (max HP + DEX-based initiative bonus) from the stat block.
+	// Combat stats (max HP, DEX initiative bonus, XP) from the stat block.
 	const combatStats = (slug: string | null | undefined) => {
-		if (!slug) return { maxHp: null as number | null, initMod: 0 };
+		if (!slug) return { maxHp: null as number | null, initMod: 0, xp: null as number | null };
 		const row = db
-			.prepare('SELECT hp, data FROM monsters WHERE slug = ? AND (user_id IS NULL OR user_id = ?)')
-			.get(slug, uid) as { hp: number | null; data: string } | undefined;
-		if (!row) return { maxHp: null, initMod: 0 };
+			.prepare('SELECT hp, xp, data FROM monsters WHERE slug = ? AND (user_id IS NULL OR user_id = ?)')
+			.get(slug, uid) as { hp: number | null; xp: number | null; data: string } | undefined;
+		if (!row) return { maxHp: null, initMod: 0, xp: null };
 		let initMod = 0;
 		try {
 			const d = JSON.parse(row.data);
@@ -45,12 +45,15 @@ export function load({ params, locals }) {
 		} catch {
 			// keep default
 		}
-		return { maxHp: row.hp, initMod };
+		return { maxHp: row.hp, initMod, xp: row.xp };
 	};
 
 	if (layout?.tokens) {
 		for (const t of layout.tokens) {
 			t.img = t.kind === 'monster' ? tokenImg(t.slug) : (t.img ?? null);
+			// XP refreshes every load so the difficulty gauge stays honest even
+			// for layouts saved before it existed (or after a sheet was edited).
+			if (t.kind === 'monster') t.xp = combatStats(t.slug).xp;
 			// Refresh sheet links on every load so linking/unlinking after the
 			// layout was saved still takes effect.
 			if (t.kind === 'pc' && /^pc\d+$/.test(t.id)) {
@@ -63,6 +66,7 @@ export function load({ params, locals }) {
 					.prepare('SELECT sheet_slug FROM characters WHERE id = ? AND user_id = ?')
 					.get(t.charId, uid) as { sheet_slug: string | null } | undefined;
 				t.sheetSlug = ch?.sheet_slug ?? null;
+				t.xp = combatStats(t.sheetSlug).xp;
 			}
 			// Backfill combat fields onto layouts saved before the encounter tracker existed.
 			if (t.maxHp === undefined) {
@@ -106,6 +110,7 @@ export function load({ params, locals }) {
 				maxHp: stats.maxHp,
 				hp: stats.maxHp,
 				initMod: stats.initMod,
+				xp: stats.xp,
 				init: null,
 				dead: false
 			});
@@ -174,7 +179,8 @@ export function load({ params, locals }) {
 				sheetSlug: c.sheet_slug ?? null,
 				cells: tokenCells(c.sheet_size),
 				maxHp: stats.maxHp,
-				initMod: stats.initMod
+				initMod: stats.initMod,
+				xp: stats.xp
 			};
 		});
 
@@ -185,6 +191,11 @@ export function load({ params, locals }) {
 		layout,
 		template,
 		maps,
-		npcs
+		npcs,
+		// Gauge defaults: the encounter's party, falling back to settings.
+		party: {
+			level: Number(enc.partyLevel) || Number(getSetting(uid, 'party_level', '3')),
+			size: Number(enc.partySize) || Number(getSetting(uid, 'party_size', '4'))
+		}
 	};
 }

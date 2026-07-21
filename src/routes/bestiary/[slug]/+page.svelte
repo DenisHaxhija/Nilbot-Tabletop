@@ -7,9 +7,15 @@
 
 <div class="bar">
 	<a href="/bestiary">← Bestiary</a>
-	{#if data.editable}
-		<a class="edit-link" href="/builder?edit={encodeURIComponent(data.slug)}">✎ Edit sheet</a>
-	{/if}
+	<a
+		class="edit-link"
+		href="/builder?edit={encodeURIComponent(data.slug)}"
+		title={data.own
+			? 'Open this sheet in the Sheet Builder'
+			: 'Shared sheet — opens in the builder and saves as your own Custom copy'}
+	>
+		{data.own ? '✎ Edit sheet' : '✎ Edit a copy'}
+	</a>
 </div>
 
 <div class="wrap">

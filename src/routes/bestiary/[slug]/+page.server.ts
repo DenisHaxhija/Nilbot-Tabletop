@@ -6,8 +6,8 @@ export function load({ params, locals }) {
 	if (!row) error(404, 'Monster not found');
 	return {
 		slug: row.slug,
-		// Only the user's own sheets (Custom, built in the Sheet Builder) can be edited.
-		editable: row.user_id === locals.user!.id,
+		// Own sheets edit in place; shared ones open as an editable copy.
+		own: row.user_id === locals.user!.id,
 		meta: {
 			img: row.token ? `/api/token/${encodeURIComponent(row.slug)}` : null,
 			name: row.name,

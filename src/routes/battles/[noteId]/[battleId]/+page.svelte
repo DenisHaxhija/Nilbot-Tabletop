@@ -79,6 +79,7 @@
 			maxHp: m.hp ?? null,
 			hp: m.hp ?? null,
 			initMod: m.initMod ?? 0,
+			xp: m.xp ?? null,
 			init: null,
 			dead: false,
 			x: 0.5,
@@ -113,6 +114,7 @@
 			maxHp: c.maxHp ?? null,
 			hp: c.maxHp ?? null,
 			initMod: c.initMod ?? 0,
+			xp: c.xp ?? null,
 			init: null,
 			dead: false,
 			x: 0.5,
@@ -176,6 +178,57 @@
 		});
 		if (ok) layout = null;
 	}
+
+	// --- Difficulty gauge (DMG math, live from the tokens on the board) ---
+	import { battleDifficulty } from '$lib/xp';
+	let gaugeLevel = $state(data.layout?.party?.level ?? data.party.level);
+	let gaugeSize = $state(data.layout?.party?.size ?? data.party.size);
+	function persistParty() {
+		if (!layout) return;
+		layout.party = { level: gaugeLevel, size: gaugeSize };
+		persist();
+	}
+	const allyCount = $derived(
+		layout
+			? layout.tokens.filter((t: any) => (t.kind === 'monster' || t.kind === 'npc') && t.ally)
+					.length
+			: 0
+	);
+	// The board IS the fight: party side = PC tokens actually on the map,
+	// plus allies. The manual size input only matters when the board has no
+	// party side at all (e.g. before placement).
+	const pcCount = $derived(
+		layout ? layout.tokens.filter((t: any) => t.kind === 'pc').length : 0
+	);
+	const gauge = $derived.by(() => {
+		if (!layout) return null;
+		const xps = layout.tokens
+			.filter((t: any) => (t.kind === 'monster' || t.kind === 'npc') && !t.ally && t.xp)
+			.map((t: any) => t.xp as number);
+		return pcCount + allyCount > 0
+			? battleDifficulty(xps, gaugeLevel, pcCount, allyCount)
+			: battleDifficulty(xps, gaugeLevel, gaugeSize, 0);
+	});
+	function toggleAlly(t: any) {
+		t.ally = !t.ally;
+		persist();
+	}
+	// Piecewise marker position: six equal bands, each threshold boundary on
+	// a band edge (impossible = 2× deadly; the last band runs to 4× deadly).
+	const gaugePct = $derived.by(() => {
+		if (!gauge) return 0;
+		const x = gauge.adjustedXp;
+		const t = gauge.thresholds;
+		const B = 100 / 6;
+		const seg = (lo: number, hi: number, from: number, to: number) =>
+			from + ((x - lo) / (hi - lo)) * (to - from);
+		if (x < t.easy) return seg(0, t.easy, 0, B);
+		if (x < t.medium) return seg(t.easy, t.medium, B, 2 * B);
+		if (x < t.hard) return seg(t.medium, t.hard, 2 * B, 3 * B);
+		if (x < t.deadly) return seg(t.hard, t.deadly, 3 * B, 4 * B);
+		if (x < t.impossible) return seg(t.deadly, t.impossible, 4 * B, 5 * B);
+		return Math.min(100, seg(t.impossible, t.impossible * 2, 5 * B, 100));
+	});
 
 	// --- Encounter tracker (initiative, HP, turns) ---
 	const combatants = $derived(
@@ -458,6 +511,49 @@
 	</div>
 
 	<aside class="tracker">
+		{#if gauge}
+			<div class="gauge">
+				<div class="gauge-top">
+					<span class="diff {gauge.difficulty}">{gauge.difficulty}</span>
+					<span class="gauge-xp" title="Adjusted XP (raw {gauge.totalXp.toLocaleString()} × count multiplier)">
+						{gauge.adjustedXp.toLocaleString()} XP
+					</span>
+					<span class="gauge-party">
+						lvl <input type="number" min="1" max="20" bind:value={gaugeLevel} onchange={persistParty} />
+						{#if pcCount + allyCount > 0}
+							<span
+								class="party-count"
+								title="Party side from the board: {pcCount} PC{pcCount === 1 ? '' : 's'}{allyCount
+									? ` + ${allyCount} all${allyCount === 1 ? 'y' : 'ies'}`
+									: ''}. Remove or add tokens to change it."
+							>
+								× {pcCount}{allyCount ? ` +${allyCount}🛡` : ''}
+							</span>
+						{:else}
+							× <input
+								type="number"
+								min="1"
+								max="10"
+								bind:value={gaugeSize}
+								onchange={persistParty}
+								title="No party tokens on the board — assumed party size"
+							/>
+						{/if}
+					</span>
+				</div>
+				<div class="gauge-bar" title="easy {gauge.thresholds.easy.toLocaleString()} · medium {gauge.thresholds.medium.toLocaleString()} · hard {gauge.thresholds.hard.toLocaleString()} · deadly {gauge.thresholds.deadly.toLocaleString()} · impossible {gauge.thresholds.impossible.toLocaleString()} XP">
+					<div class="zones">
+						<span class="z-trivial"></span>
+						<span class="z-easy"></span>
+						<span class="z-medium"></span>
+						<span class="z-hard"></span>
+						<span class="z-deadly"></span>
+						<span class="z-impossible"></span>
+					</div>
+					<div class="marker" style="left:{gaugePct}%"></div>
+				</div>
+			</div>
+		{/if}
 		<div class="tracker-head">
 			<span class="round">Round {layout.encounter?.round ?? 1}</span>
 			<button class="small" onclick={rollInitiative} title="Roll d20 + DEX for all monsters">🎲 Initiative</button>
@@ -476,7 +572,21 @@
 									? '#6b4d8f'
 									: tokenColor(t.type)}"
 					></span>
-					<span class="cname" title={t.name}>{t.name}{t.label ? ` ${t.label}` : ''}</span>
+					<span class="cname" title="{t.name}{t.label ? ` ${t.label}` : ''}">
+						{t.name.length > 16 ? t.name.slice(0, 15).trimEnd() + '…' : t.name}{t.label
+							? ` ${t.label}`
+							: ''}
+					</span>
+					{#if t.kind !== 'pc'}
+						<button
+							class="ff"
+							class:ally={t.ally}
+							title={t.ally
+								? 'Ally — fights with the party (counted in the gauge as an extra party member). Click to make foe.'
+								: 'Foe — counts toward encounter XP. Click to make ally.'}
+							onclick={() => toggleAlly(t)}>{t.ally ? '🛡' : '⚔'}</button
+						>
+					{/if}
 					<input
 						class="init"
 						type="number"
@@ -808,7 +918,7 @@
 	}
 	.battle-layout {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 372px;
+		grid-template-columns: minmax(0, 1fr) 392px;
 		gap: 1rem;
 		align-items: start;
 	}
@@ -856,6 +966,7 @@
 		padding: 0.15rem 0.3rem;
 		text-align: center;
 		border-color: var(--accent-2);
+		flex-shrink: 0;
 	}
 	.dmg::placeholder {
 		color: var(--accent-2);
@@ -867,6 +978,7 @@
 		color: var(--muted);
 		padding: 0 0.15rem;
 		font-size: 0.8rem;
+		flex-shrink: 0;
 	}
 	.row-x:hover {
 		color: var(--danger);
@@ -877,6 +989,102 @@
 		box-shadow:
 			0 0 0 6px rgba(15, 208, 106, 0.2),
 			0 0 18px rgba(15, 208, 106, 0.9);
+	}
+	.gauge {
+		border-bottom: 1px solid var(--border);
+		padding-bottom: 0.5rem;
+		margin-bottom: 0.5rem;
+		display: grid;
+		gap: 0.35rem;
+	}
+	.gauge-top {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.82rem;
+	}
+	.diff {
+		font-weight: 700;
+		text-transform: capitalize;
+		border-radius: 5px;
+		padding: 0.08rem 0.5rem;
+		font-size: 0.78rem;
+	}
+	.diff.trivial { background: #3a3f4a; color: #aab0bc; }
+	.diff.easy { background: #2e4d33; color: #9fd9a4; }
+	.diff.medium { background: #2f4a63; color: #9ec7ef; }
+	.diff.hard { background: #5d4426; color: #e6b96b; }
+	.diff.deadly { background: #5d2a26; color: #ef9c93; }
+	.diff.impossible { background: #43244f; color: #d9a0e8; }
+	.gauge-xp {
+		color: var(--text);
+		font-weight: 600;
+	}
+	.gauge-party {
+		margin-left: auto;
+		color: var(--muted);
+		display: flex;
+		align-items: center;
+		gap: 0.2rem;
+	}
+	.gauge-party input {
+		width: 2.3rem;
+		font-size: 0.8rem;
+		padding: 0.1rem 0.15rem;
+		text-align: center;
+	}
+	.gauge-bar {
+		position: relative;
+		height: 8px;
+	}
+	.zones {
+		display: flex;
+		height: 100%;
+		border-radius: 99px;
+		overflow: hidden;
+	}
+	.zones span {
+		flex: 1;
+		opacity: 0.55;
+	}
+	.z-trivial { background: #3a3f4a; }
+	.z-easy { background: #4e7d4e; }
+	.z-medium { background: #3d6b9e; }
+	.z-hard { background: #b07d3c; }
+	.z-deadly { background: #b0413e; }
+	.z-impossible { background: #7e4a94; }
+	.allies {
+		color: var(--accent);
+		font-size: 0.78rem;
+	}
+	.party-count {
+		color: var(--text);
+		font-size: 0.8rem;
+		white-space: nowrap;
+	}
+	.ff {
+		background: transparent;
+		border: none;
+		padding: 0 0.15rem;
+		font-size: 0.8rem;
+		opacity: 0.55;
+		flex-shrink: 0;
+	}
+	.ff:hover {
+		opacity: 1;
+	}
+	.ff.ally {
+		opacity: 1;
+	}
+	.marker {
+		position: absolute;
+		top: -3px;
+		bottom: -3px;
+		width: 3px;
+		background: var(--text);
+		border-radius: 2px;
+		transform: translateX(-50%);
+		transition: left 0.25s;
 	}
 	.tracker {
 		background: var(--panel);
@@ -925,6 +1133,7 @@
 		padding: 0.25rem 0.35rem;
 		border-radius: 6px;
 		border-left: 3px solid transparent;
+		overflow: hidden;
 	}
 	.combatants li.active {
 		background: var(--panel-2);
@@ -943,9 +1152,11 @@
 		flex-shrink: 0;
 		border: 1px solid var(--border);
 	}
+	/* The name is the ONLY element allowed to shrink — everything after it
+	   keeps its width so long custom-sheet names can't push controls out. */
 	.cname {
 		flex: 1;
-		min-width: 2.5rem;
+		min-width: 1.5rem;
 		font-size: 0.85rem;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -956,6 +1167,7 @@
 		font-size: 0.8rem;
 		padding: 0.15rem 0.3rem;
 		text-align: center;
+		flex-shrink: 0;
 	}
 	.hp-wrap {
 		display: flex;
@@ -963,6 +1175,7 @@
 		gap: 0.15rem;
 		font-size: 0.8rem;
 		color: var(--muted);
+		flex-shrink: 0;
 	}
 	.hp {
 		width: 2.6rem;

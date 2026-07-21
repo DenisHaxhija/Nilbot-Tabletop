@@ -1,7 +1,32 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { confirmDialog } from '$lib/confirm.svelte';
 	let { data } = $props();
+
+	// Manual battle creation — no AI needed. Starts empty; creatures are
+	// added on the map via the Add drawer.
+	let addingBattle = $state(false);
+	let newTitle = $state('');
+	let creating = $state(false);
+	async function createByHand(e: SubmitEvent) {
+		e.preventDefault();
+		if (!newTitle.trim() || creating) return;
+		creating = true;
+		try {
+			const res = await fetch('/api/battles', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					noteId: data.note.id,
+					encounter: { title: newTitle.trim(), creatures: [] }
+				})
+			});
+			const body = await res.json();
+			if (res.ok) goto(`/battles/${data.note.id}/${body.id}`);
+		} finally {
+			creating = false;
+		}
+	}
 
 	async function togglePublish(b: any) {
 		await fetch(`/api/battles/${b.id}/publish`, {
@@ -31,7 +56,25 @@
 
 <div class="head">
 	<h1>{data.note.title}</h1>
-	<a class="open-session" href="/notes/{data.note.id}">open session →</a>
+	<div class="head-actions">
+		{#if addingBattle}
+			<form class="new-battle" onsubmit={createByHand}>
+				<!-- svelte-ignore a11y_autofocus -->
+				<input
+					bind:value={newTitle}
+					placeholder="Battle title — e.g. Ambush at the mill"
+					autofocus
+					onblur={() => !newTitle.trim() && (addingBattle = false)}
+				/>
+				<button type="submit" disabled={creating}>Create</button>
+			</form>
+		{:else}
+			<button onclick={() => (addingBattle = true)} title="Create an empty battle and add creatures on the map — no AI needed">
+				＋ New battle
+			</button>
+		{/if}
+		<a class="open-session" href="/notes/{data.note.id}">open session →</a>
+	</div>
 </div>
 
 <div class="battles">
@@ -39,7 +82,7 @@
 		<div class="battle">
 			<div class="battle-head">
 				<b>{b.title}</b>
-				<span class="badge {b.difficulty}">{b.difficulty}</span>
+				{#if b.difficulty}<span class="badge {b.difficulty}">{b.difficulty}</span>{/if}
 				<a class="map-link" href="/battles/{data.note.id}/{b.id}">🗺 Open map</a>
 				<button class="pub" class:on={b.published} onclick={() => togglePublish(b)}>
 					{b.published ? '✓ published' : 'publish'}
@@ -75,8 +118,23 @@
 <style>
 	.head {
 		display: flex;
-		align-items: baseline;
+		align-items: center;
 		gap: 1rem;
+		flex-wrap: wrap;
+	}
+	.head-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-left: auto;
+	}
+	.new-battle {
+		display: flex;
+		gap: 0.4rem;
+	}
+	.new-battle input {
+		width: 16rem;
+		font-size: 0.9rem;
 	}
 	.open-session {
 		font-size: 0.9rem;
