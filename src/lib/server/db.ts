@@ -147,11 +147,6 @@ try {
 } catch {
 	// column already present
 }
-try {
-	db.exec(`ALTER TABLE pcs ADD COLUMN sheet_slug TEXT`);
-} catch {
-	// column already present
-}
 // Spoiler protection: hidden groups collapse on the Characters index; a
 // character with hide_name set shows as "???" on the player-facing canvas.
 try {
@@ -207,20 +202,6 @@ try {
 	db.exec(`ALTER TABLE users ADD COLUMN storage_cap_mb INTEGER`);
 } catch {
 	// column already present
-}
-// Size of each stored user file, so deletes can decrement usage on any backend.
-for (const [table, col] of [
-	['maps', 'bytes'],
-	['pcs', 'bytes'],
-	['characters', 'bytes'],
-	['songs', 'bytes'],
-	['monsters', 'token_bytes']
-] as const) {
-	try {
-		db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} INTEGER`);
-	} catch {
-		// column already present
-	}
 }
 
 db.exec(`
@@ -278,6 +259,26 @@ CREATE TABLE IF NOT EXISTS pcs (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `);
+// Optional link to a stat sheet (monsters.slug — bestiary or Custom).
+try {
+	db.exec(`ALTER TABLE pcs ADD COLUMN sheet_slug TEXT`);
+} catch {
+	// column already present
+}
+// Size of each stored user file, so deletes can decrement usage on any backend.
+for (const [table, col] of [
+	['maps', 'bytes'],
+	['pcs', 'bytes'],
+	['characters', 'bytes'],
+	['songs', 'bytes'],
+	['monsters', 'token_bytes']
+] as const) {
+	try {
+		db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} INTEGER`);
+	} catch {
+		// column already present
+	}
+}
 
 // Spell compendium. Shared-layer pattern like monsters/items: user_id NULL
 // rows are the Open5e base (import-open5e-spells.mjs).
