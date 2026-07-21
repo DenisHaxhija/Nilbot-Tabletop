@@ -147,13 +147,9 @@ try {
 } catch {
 	// column already present
 }
-// Spoiler protection: hidden groups collapse on the Characters index; a
-// character with hide_name set shows as "???" on the player-facing canvas.
-try {
-	db.exec(`ALTER TABLE char_groups ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`);
-} catch {
-	// column already present
-}
+// Spoiler protection: a character with hide_name set shows as "???" on the
+// player-facing canvas. (Its sibling, char_groups.hidden, is added further
+// down — after char_groups is created, so fresh installs get it too.)
 try {
 	db.exec(`ALTER TABLE characters ADD COLUMN hide_name INTEGER NOT NULL DEFAULT 0`);
 } catch {
@@ -248,6 +244,14 @@ CREATE TABLE IF NOT EXISTS shop_stock (
   PRIMARY KEY (user_id, item_id)
 );
 `);
+// Spoiler protection: hidden groups collapse on the Characters index. Runs
+// after char_groups exists so fresh installs get the column too (same
+// ordering bug class as changelog/2026-07-21-fix-pcs-sheet-slug-migration).
+try {
+	db.exec(`ALTER TABLE char_groups ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0`);
+} catch {
+	// column already present
+}
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS pcs (
