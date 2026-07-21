@@ -156,6 +156,7 @@
 </div>
 
 <div class="grid">
+	<div class="main-col">
 	{#if data.lastSession}
 		<a class="panel continue" href="/notes/{data.lastSession.id}">
 			<p class="panel-label">Jump back in</p>
@@ -174,6 +175,25 @@
 		</div>
 	{/if}
 
+	<div class="panel dm-screen">
+		<p class="panel-label">⛨ DM Screen</p>
+		<div class="screen-tabs">
+			{#each DM_SCREEN as s (s.key)}
+				<button class:on={screenTab === s.key} onclick={() => (screenTab = s.key)}>{s.label}</button>
+			{/each}
+		</div>
+		{#each screenSection.groups as g, gi (gi)}
+			{#if g.title}<h4 class="screen-group">{g.title}</h4>{/if}
+			<div class="screen-cols">
+				{#each g.entries as e (e.t)}
+					<p class="rule"><b>{e.t}.</b> {e.d}</p>
+				{/each}
+			</div>
+		{/each}
+	</div>
+	</div>
+
+	<div class="side-col">
 	<div class="panel dice-panel">
 		<p class="panel-label">D20</p>
 		<button
@@ -334,22 +354,6 @@
 		</ul>
 		<a class="more" href="/names">full generator →</a>
 	</div>
-
-	<div class="panel dm-screen">
-		<p class="panel-label">⛨ DM Screen</p>
-		<div class="screen-tabs">
-			{#each DM_SCREEN as s (s.key)}
-				<button class:on={screenTab === s.key} onclick={() => (screenTab = s.key)}>{s.label}</button>
-			{/each}
-		</div>
-		{#each screenSection.groups as g, gi (gi)}
-			{#if g.title}<h4 class="screen-group">{g.title}</h4>{/if}
-			<div class="screen-cols">
-				{#each g.entries as e (e.t)}
-					<p class="rule"><b>{e.t}.</b> {e.d}</p>
-				{/each}
-			</div>
-		{/each}
 	</div>
 </div>
 
@@ -383,14 +387,29 @@
 		font-weight: 600;
 	}
 
+	/* Deliberate two-column layout: the work happens in the main column
+	   (session + DM screen), utilities stack in a rail — no orphan slots. */
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+		grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1fr);
 		gap: 1rem;
 		margin: 1.5rem 0;
+		align-items: stretch;
+	}
+	@media (max-width: 900px) {
+		.grid {
+			grid-template-columns: 1fr;
+		}
+	}
+	.main-col,
+	.side-col {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		min-width: 0;
 	}
 	.dm-screen {
-		grid-column: 1 / -1;
+		flex: 1;
 	}
 	.screen-tabs {
 		display: flex;
@@ -421,7 +440,7 @@
 		font-size: 0.98rem;
 	}
 	.screen-cols {
-		columns: 3 300px;
+		columns: 2 280px;
 		column-gap: 1.6rem;
 	}
 	.rule {
