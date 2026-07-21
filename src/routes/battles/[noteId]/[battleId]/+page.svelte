@@ -79,6 +79,7 @@
 			maxHp: m.hp ?? null,
 			hp: m.hp ?? null,
 			initMod: m.initMod ?? 0,
+			xp: m.xp ?? null,
 			init: null,
 			dead: false,
 			x: 0.5,
@@ -113,6 +114,7 @@
 			maxHp: c.maxHp ?? null,
 			hp: c.maxHp ?? null,
 			initMod: c.initMod ?? 0,
+			xp: c.xp ?? null,
 			init: null,
 			dead: false,
 			x: 0.5,
@@ -176,6 +178,37 @@
 		});
 		if (ok) layout = null;
 	}
+
+	// --- Difficulty gauge (DMG math, live from the tokens on the board) ---
+	import { battleDifficulty } from '$lib/xp';
+	let gaugeLevel = $state(data.layout?.party?.level ?? data.party.level);
+	let gaugeSize = $state(data.layout?.party?.size ?? data.party.size);
+	function persistParty() {
+		if (!layout) return;
+		layout.party = { level: gaugeLevel, size: gaugeSize };
+		persist();
+	}
+	const gauge = $derived.by(() => {
+		if (!layout) return null;
+		const xps = layout.tokens
+			.filter((t: any) => (t.kind === 'monster' || t.kind === 'npc') && t.xp)
+			.map((t: any) => t.xp as number);
+		return battleDifficulty(xps, gaugeLevel, gaugeSize);
+	});
+	// Piecewise marker position matching the zone bands: each threshold
+	// boundary sits at a fixed 20% stop (deadly zone runs 60→100%).
+	const gaugePct = $derived.by(() => {
+		if (!gauge) return 0;
+		const x = gauge.adjustedXp;
+		const t = gauge.thresholds;
+		const seg = (lo: number, hi: number, from: number, to: number) =>
+			from + ((x - lo) / (hi - lo)) * (to - from);
+		if (x < t.easy) return seg(0, t.easy, 0, 20);
+		if (x < t.medium) return seg(t.easy, t.medium, 20, 40);
+		if (x < t.hard) return seg(t.medium, t.hard, 40, 60);
+		if (x < t.deadly) return seg(t.hard, t.deadly, 60, 80);
+		return Math.min(100, seg(t.deadly, t.deadly * 2, 80, 100));
+	});
 
 	// --- Encounter tracker (initiative, HP, turns) ---
 	const combatants = $derived(
@@ -458,6 +491,30 @@
 	</div>
 
 	<aside class="tracker">
+		{#if gauge}
+			<div class="gauge">
+				<div class="gauge-top">
+					<span class="diff {gauge.difficulty}">{gauge.difficulty}</span>
+					<span class="gauge-xp" title="Adjusted XP (raw {gauge.totalXp.toLocaleString()} × count multiplier)">
+						{gauge.adjustedXp.toLocaleString()} XP
+					</span>
+					<span class="gauge-party">
+						lvl <input type="number" min="1" max="20" bind:value={gaugeLevel} onchange={persistParty} />
+						× <input type="number" min="1" max="10" bind:value={gaugeSize} onchange={persistParty} />
+					</span>
+				</div>
+				<div class="gauge-bar" title="easy {gauge.thresholds.easy.toLocaleString()} · medium {gauge.thresholds.medium.toLocaleString()} · hard {gauge.thresholds.hard.toLocaleString()} · deadly {gauge.thresholds.deadly.toLocaleString()} XP">
+					<div class="zones">
+						<span class="z-trivial"></span>
+						<span class="z-easy"></span>
+						<span class="z-medium"></span>
+						<span class="z-hard"></span>
+						<span class="z-deadly"></span>
+					</div>
+					<div class="marker" style="left:{gaugePct}%"></div>
+				</div>
+			</div>
+		{/if}
 		<div class="tracker-head">
 			<span class="round">Round {layout.encounter?.round ?? 1}</span>
 			<button class="small" onclick={rollInitiative} title="Roll d20 + DEX for all monsters">🎲 Initiative</button>
@@ -877,6 +934,77 @@
 		box-shadow:
 			0 0 0 6px rgba(15, 208, 106, 0.2),
 			0 0 18px rgba(15, 208, 106, 0.9);
+	}
+	.gauge {
+		border-bottom: 1px solid var(--border);
+		padding-bottom: 0.5rem;
+		margin-bottom: 0.5rem;
+		display: grid;
+		gap: 0.35rem;
+	}
+	.gauge-top {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.82rem;
+	}
+	.diff {
+		font-weight: 700;
+		text-transform: capitalize;
+		border-radius: 5px;
+		padding: 0.08rem 0.5rem;
+		font-size: 0.78rem;
+	}
+	.diff.trivial { background: #3a3f4a; color: #aab0bc; }
+	.diff.easy { background: #2e4d33; color: #9fd9a4; }
+	.diff.medium { background: #2f4a63; color: #9ec7ef; }
+	.diff.hard { background: #5d4426; color: #e6b96b; }
+	.diff.deadly { background: #5d2a26; color: #ef9c93; }
+	.gauge-xp {
+		color: var(--text);
+		font-weight: 600;
+	}
+	.gauge-party {
+		margin-left: auto;
+		color: var(--muted);
+		display: flex;
+		align-items: center;
+		gap: 0.2rem;
+	}
+	.gauge-party input {
+		width: 2.3rem;
+		font-size: 0.8rem;
+		padding: 0.1rem 0.15rem;
+		text-align: center;
+	}
+	.gauge-bar {
+		position: relative;
+		height: 8px;
+	}
+	.zones {
+		display: flex;
+		height: 100%;
+		border-radius: 99px;
+		overflow: hidden;
+	}
+	.zones span {
+		flex: 1;
+		opacity: 0.55;
+	}
+	.z-trivial { background: #3a3f4a; }
+	.z-easy { background: #4e7d4e; }
+	.z-medium { background: #3d6b9e; }
+	.z-hard { background: #b07d3c; }
+	.z-deadly { background: #b0413e; }
+	.marker {
+		position: absolute;
+		top: -3px;
+		bottom: -3px;
+		width: 3px;
+		background: var(--text);
+		border-radius: 2px;
+		transform: translateX(-50%);
+		transition: left 0.25s;
 	}
 	.tracker {
 		background: var(--panel);

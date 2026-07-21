@@ -22,6 +22,7 @@ export async function GET({ url, locals }) {
 				type: r.type,
 				size: r.size,
 				hp: r.hp,
+				xp: r.xp,
 				initMod,
 				img: r.token ? `/api/token/${encodeURIComponent(r.slug)}` : null
 			};

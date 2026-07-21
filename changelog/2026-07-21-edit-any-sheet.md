@@ -19,6 +19,15 @@ editor's extractor panel. Creates an empty battle (party tokens only);
 creatures are added on the map via the Add drawer. The difficulty badge
 only renders when the extractor computed one.
 
+Also: a **live difficulty gauge** at the top of the battle builder's
+tracker — DMG math (XP × count multiplier vs party thresholds) computed
+from the monsters/NPCs currently on the board, updating as you add and
+remove tokens. Shows the difficulty badge, adjusted XP, an editable
+party level × size (persisted per battle in the layout), and a zone bar
+(trivial→deadly) with a marker. The threshold/multiplier tables moved
+to `$lib/xp` so the extractor and the gauge share one source; monster
+search results and battle tokens now carry `xp`.
+
 ## Why
 Classic DM move: "a goblin, but tougher and it explodes" shouldn't
 require building a goblin from scratch. And together with the by-hand
