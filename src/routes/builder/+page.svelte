@@ -5,23 +5,29 @@
 
 	let { data } = $props();
 
+	function loadMessage(edit: { own: boolean; sheet: any }) {
+		return {
+			who: 'ai' as const,
+			text: edit.own
+				? `Loaded ${edit.sheet.name} from your bestiary — refine it in chat, edit it by hand, or both. Saving updates the existing sheet.`
+				: `Loaded ${edit.sheet.name} from the shared bestiary — refine it in chat or by hand. Saving adds it to your bestiary as your own Custom copy; the original stays untouched.`
+		};
+	}
+
 	let description = $state('');
 	let feedback = $state('');
 	let sheet = $state<Record<string, any> | null>(data.edit ? data.edit.sheet : null);
-	let editingSlug = $state<string | null>(data.edit?.slug ?? null);
+	// Which sheet the editor was loaded from (drives resync on navigation).
+	let loadedSlug = $state<string | null>(data.edit?.slug ?? null);
+	// In-place update target (own sheets only) vs fork source (shared sheets).
+	let editingSlug = $state<string | null>(data.edit?.own ? data.edit.slug : null);
+	let sourceSlug = $state<string | null>(data.edit && !data.edit.own ? data.edit.slug : null);
 	let manual = $state(false);
 	let busy = $state(false);
 	let confirming = $state(false);
 	let errorMsg = $state('');
 	let chatLog = $state<{ who: 'you' | 'ai'; text: string }[]>(
-		data.edit
-			? [
-					{
-						who: 'ai',
-						text: `Loaded ${data.edit.sheet.name} from your bestiary — refine it in chat, edit it by hand, or both. Saving updates the existing sheet.`
-					}
-				]
-			: []
+		data.edit ? [loadMessage(data.edit)] : []
 	);
 
 	let tokenInput: HTMLInputElement | undefined = $state();
@@ -78,22 +84,17 @@
 	// SvelteKit reuses this component across navigations — resync when the
 	// ?edit target changes (or is cleared via the sidebar link).
 	$effect(() => {
-		if ((data.edit?.slug ?? null) === editingSlug) return;
-		editingSlug = data.edit?.slug ?? null;
+		if ((data.edit?.slug ?? null) === loadedSlug) return;
+		loadedSlug = data.edit?.slug ?? null;
+		editingSlug = data.edit?.own ? data.edit.slug : null;
+		sourceSlug = data.edit && !data.edit.own ? data.edit.slug : null;
 		sheet = data.edit ? data.edit.sheet : null;
 		tokenPreview = data.edit?.tokenUrl ?? null;
 		manual = false;
 		feedback = '';
 		errorMsg = '';
 		if (tokenInput) tokenInput.value = '';
-		chatLog = data.edit
-			? [
-					{
-						who: 'ai',
-						text: `Loaded ${data.edit.sheet.name} from your bestiary — refine it in chat, edit it by hand, or both. Saving updates the existing sheet.`
-					}
-				]
-			: [];
+		chatLog = data.edit ? [loadMessage(data.edit)] : [];
 	});
 
 	const previewMeta = $derived(
@@ -157,6 +158,7 @@
 			const form = new FormData();
 			form.set('sheet', JSON.stringify(sheet));
 			if (editingSlug) form.set('slug', editingSlug);
+			if (sourceSlug) form.set('source_slug', sourceSlug);
 			const file = tokenInput?.files?.[0];
 			if (file) form.set('file', file);
 			const res = await fetch('/api/builder/confirm', { method: 'POST', body: form });
@@ -181,6 +183,9 @@
 	{#if editingSlug}
 		Editing <b>{sheet?.name}</b> — revise it in chat, flip on hand editing for direct control,
 		then save your changes back to the bestiary.
+	{:else if sourceSlug}
+		Editing a copy of <b>{sheet?.name}</b> — the shared original stays untouched; saving adds
+		your version to the bestiary as <b>Custom</b>.
 	{:else}
 		Describe a character or creature, add its token, and let the AI draft a full stat block —
 		or start from a blank sheet and build it by hand. Refine in chat or edit directly until
@@ -190,7 +195,7 @@
 
 <div class="builder">
 	<div class="left">
-		{#if !editingSlug}
+		{#if !editingSlug && !sourceSlug}
 			<label class="field">
 				Who is this?
 				<textarea
@@ -202,7 +207,7 @@
 		{/if}
 
 		<label class="field">
-			Token image ({editingSlug ? 'replace current' : 'optional'})
+			Token image ({editingSlug || sourceSlug ? 'replace current' : 'optional'})
 			<input type="file" bind:this={tokenInput} accept=".png,.jpg,.jpeg,.webp,.gif" onchange={onTokenPick} />
 		</label>
 		{#if tokenPreview}
@@ -249,9 +254,11 @@
 						? 'Saving…'
 						: editingSlug
 							? '✓ Save changes'
-							: '✓ Confirm — add to bestiary'}
+							: sourceSlug
+								? '✓ Save as my copy'
+								: '✓ Confirm — add to bestiary'}
 				</button>
-				{#if !editingSlug}
+				{#if !editingSlug && !sourceSlug}
 					<button
 						class="subtle"
 						onclick={() => {
