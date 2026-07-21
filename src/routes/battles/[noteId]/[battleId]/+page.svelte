@@ -549,7 +549,11 @@
 									? '#6b4d8f'
 									: tokenColor(t.type)}"
 					></span>
-					<span class="cname" title={t.name}>{t.name}{t.label ? ` ${t.label}` : ''}</span>
+					<span class="cname" title="{t.name}{t.label ? ` ${t.label}` : ''}">
+						{t.name.length > 16 ? t.name.slice(0, 15).trimEnd() + '…' : t.name}{t.label
+							? ` ${t.label}`
+							: ''}
+					</span>
 					{#if t.kind !== 'pc'}
 						<button
 							class="ff"
@@ -1101,6 +1105,7 @@
 		padding: 0.25rem 0.35rem;
 		border-radius: 6px;
 		border-left: 3px solid transparent;
+		overflow: hidden;
 	}
 	.combatants li.active {
 		background: var(--panel-2);
