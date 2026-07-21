@@ -41,8 +41,8 @@ export function battleDifficulty(
 ) {
 	const totalXp = xps.reduce((a, b) => a + b, 0);
 	const adjustedXp = Math.round(totalXp * encounterMultiplier(xps.length));
-	const t = THRESHOLDS[Math.min(20, Math.max(1, Math.round(partyLevel)))];
-	const size = Math.max(1, Math.round(partySize) + Math.max(0, allyCount));
+	const t = THRESHOLDS[Math.min(20, Math.max(1, Math.round(Number(partyLevel) || 1)))];
+	const size = Math.max(1, Math.round(Number(partySize) || 0) + Math.max(0, allyCount));
 	const thresholds = {
 		easy: t[0] * size,
 		medium: t[1] * size,

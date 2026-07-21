@@ -194,12 +194,20 @@
 					.length
 			: 0
 	);
+	// The board IS the fight: party side = PC tokens actually on the map,
+	// plus allies. The manual size input only matters when the board has no
+	// party side at all (e.g. before placement).
+	const pcCount = $derived(
+		layout ? layout.tokens.filter((t: any) => t.kind === 'pc').length : 0
+	);
 	const gauge = $derived.by(() => {
 		if (!layout) return null;
 		const xps = layout.tokens
 			.filter((t: any) => (t.kind === 'monster' || t.kind === 'npc') && !t.ally && t.xp)
 			.map((t: any) => t.xp as number);
-		return battleDifficulty(xps, gaugeLevel, gaugeSize, allyCount);
+		return pcCount + allyCount > 0
+			? battleDifficulty(xps, gaugeLevel, pcCount, allyCount)
+			: battleDifficulty(xps, gaugeLevel, gaugeSize, 0);
 	});
 	function toggleAlly(t: any) {
 		t.ally = !t.ally;
@@ -512,9 +520,24 @@
 					</span>
 					<span class="gauge-party">
 						lvl <input type="number" min="1" max="20" bind:value={gaugeLevel} onchange={persistParty} />
-						× <input type="number" min="1" max="10" bind:value={gaugeSize} onchange={persistParty} />
-						{#if allyCount > 0}
-							<span class="allies" title="{allyCount} all{allyCount === 1 ? 'y' : 'ies'} fighting with the party — counted as extra party members">+{allyCount}🛡</span>
+						{#if pcCount + allyCount > 0}
+							<span
+								class="party-count"
+								title="Party side from the board: {pcCount} PC{pcCount === 1 ? '' : 's'}{allyCount
+									? ` + ${allyCount} all${allyCount === 1 ? 'y' : 'ies'}`
+									: ''}. Remove or add tokens to change it."
+							>
+								× {pcCount}{allyCount ? ` +${allyCount}🛡` : ''}
+							</span>
+						{:else}
+							× <input
+								type="number"
+								min="1"
+								max="10"
+								bind:value={gaugeSize}
+								onchange={persistParty}
+								title="No party tokens on the board — assumed party size"
+							/>
 						{/if}
 					</span>
 				</div>
@@ -1033,6 +1056,11 @@
 	.allies {
 		color: var(--accent);
 		font-size: 0.78rem;
+	}
+	.party-count {
+		color: var(--text);
+		font-size: 0.8rem;
+		white-space: nowrap;
 	}
 	.ff {
 		background: transparent;
