@@ -34,9 +34,9 @@ deploys it. Nothing reaches players except through `live`.
    their own instance. Never bake them into an image or seed.
 2. **Per-user scoping + the storage seam.** Every query on notes/battles/
    characters/pcs/songs/quick_notes/shop_stock/maps filters by
-   `locals.user!.id`. Monsters and items use the shared-layer pattern
-   `(user_id IS NULL OR user_id = ?)` — `user_id NULL` rows are the shared
-   Open5e data. All user FILES (maps, portraits, music, custom tokens) go
+   `locals.user!.id`. Monsters, items and spells use the shared-layer
+   pattern `(user_id IS NULL OR user_id = ?)` — `user_id NULL` rows are the
+   shared Open5e data. All user FILES (maps, portraits, music, custom tokens) go
    through `src/lib/server/storage.ts` — never `fs` directly in a route.
    Keys are `u<userId>/<area>/<id><ext>`; the backend is local disk
    (`data/store/`) by default or any S3-compatible bucket via
@@ -82,6 +82,7 @@ npm install
 npm approve-scripts better-sqlite3 && npm rebuild better-sqlite3  # native module
 node scripts/import-open5e.mjs        # shared bestiary (~3,200 monsters)
 node scripts/import-open5e-items.mjs  # shared item catalog (~1,600 items)
+node scripts/import-open5e-spells.mjs # shared spell compendium (~1,400 spells)
 
 # every day
 npm run dev                           # http://localhost:5173

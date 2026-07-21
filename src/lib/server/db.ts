@@ -279,6 +279,123 @@ CREATE TABLE IF NOT EXISTS pcs (
 );
 `);
 
+// Spell compendium. Shared-layer pattern like monsters/items: user_id NULL
+// rows are the Open5e base (import-open5e-spells.mjs).
+db.exec(`
+CREATE TABLE IF NOT EXISTS spells (
+  id INTEGER PRIMARY KEY,
+  slug TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  level INTEGER NOT NULL DEFAULT 0,
+  school TEXT,
+  classes TEXT NOT NULL DEFAULT '',
+  casting_time TEXT,
+  range TEXT,
+  components TEXT,
+  duration TEXT,
+  concentration INTEGER NOT NULL DEFAULT 0,
+  ritual INTEGER NOT NULL DEFAULT 0,
+  source TEXT,
+  layer TEXT NOT NULL DEFAULT 'open5e',
+  data TEXT NOT NULL,
+  user_id INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_spells_level ON spells(level);
+CREATE INDEX IF NOT EXISTS idx_spells_school ON spells(school);
+CREATE INDEX IF NOT EXISTS idx_spells_name ON spells(name);
+`);
+
+export interface SpellFilters {
+	q?: string;
+	level?: number;
+	school?: string;
+	klass?: string;
+	source?: string;
+	limit?: number;
+	offset?: number;
+}
+
+export function searchSpells(f: SpellFilters, userId: number) {
+	const where: string[] = ['(user_id IS NULL OR user_id = ?)'];
+	const params: unknown[] = [userId];
+	if (f.q) {
+		where.push('name LIKE ?');
+		params.push(`%${f.q}%`);
+	}
+	if (f.level !== undefined) {
+		where.push('level = ?');
+		params.push(f.level);
+	}
+	if (f.school) {
+		where.push('school = ?');
+		params.push(f.school);
+	}
+	if (f.klass) {
+		where.push(`',' || REPLACE(classes, ' ', '') || ',' LIKE ?`);
+		params.push(`%,${f.klass}%`);
+	}
+	if (f.source) {
+		where.push('source = ?');
+		params.push(f.source);
+	}
+	const cond = where.join(' AND ');
+	const total = (
+		db.prepare(`SELECT count(*) c FROM spells WHERE ${cond}`).get(...params) as { c: number }
+	).c;
+	const rows = db
+		.prepare(
+			`SELECT slug, name, level, school, classes, casting_time, range, duration, concentration, ritual, source
+			 FROM spells WHERE ${cond} ORDER BY level, name LIMIT ? OFFSET ?`
+		)
+		.all(...params, f.limit ?? 50, f.offset ?? 0) as {
+		slug: string;
+		name: string;
+		level: number;
+		school: string | null;
+		classes: string;
+		casting_time: string | null;
+		range: string | null;
+		duration: string | null;
+		concentration: number;
+		ritual: number;
+		source: string | null;
+	}[];
+	return { rows, total };
+}
+
+export function spellFacets(userId: number) {
+	const schools = db
+		.prepare(
+			`SELECT DISTINCT school FROM spells WHERE school IS NOT NULL AND school != '' AND (user_id IS NULL OR user_id = ?) ORDER BY school`
+		)
+		.all(userId)
+		.map((r: any) => r.school as string);
+	const sources = db
+		.prepare(
+			`SELECT DISTINCT source FROM spells WHERE source IS NOT NULL AND (user_id IS NULL OR user_id = ?) ORDER BY source`
+		)
+		.all(userId)
+		.map((r: any) => r.source as string);
+	const classes = new Set<string>();
+	for (const r of db
+		.prepare(`SELECT DISTINCT classes FROM spells WHERE (user_id IS NULL OR user_id = ?)`)
+		.all(userId) as { classes: string }[]) {
+		for (const c of r.classes.split(',')) {
+			const clean = c.trim();
+			if (clean) classes.add(clean);
+		}
+	}
+	return { schools, sources, classes: [...classes].sort() };
+}
+
+export function getSpell(slug: string, userId: number) {
+	return db
+		.prepare('SELECT * FROM spells WHERE slug = ? AND (user_id IS NULL OR user_id = ?)')
+		.get(slug, userId) as
+		| { slug: string; name: string; level: number; school: string | null; data: string; source: string | null }
+		| undefined;
+}
+
 // DM journal: freeform reference pages (spells, pantheons, lore…) organized
 // into OneNote-style sections. Sections exist implicitly via their pages.
 db.exec(`

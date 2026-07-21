@@ -22,6 +22,7 @@
 		{ href: '/maps', label: 'Battle Maps', icon: '🗺' },
 		{ href: '/worldmaps', label: 'World Maps', icon: '🌍' },
 		{ href: '/bestiary', label: 'Bestiary', icon: '🐉' },
+		{ href: '/spells', label: 'Spells', icon: '✨' },
 		{ href: '/builder', label: 'Sheet Builder', icon: '✦' },
 		{ href: '/shop', label: 'Shop', icon: '🛒' },
 		{ href: '/music', label: 'Music', icon: '♪' },
