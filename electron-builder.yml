@@ -1,0 +1,32 @@
+# Packaging config for the NilBot desktop app. Staged ahead of use — install
+# electron-builder and run `npx electron-builder` when we start producing
+# installers (that's also when the NilBot-Tabletop packaging repo gets
+# created for Steam store assets/CI, consuming tagged releases of this repo).
+#
+# Distribution rule (CLAUDE.md rule 1 applies doubly here): packaged builds
+# ship with NO data — the app bootstraps its own data dir in userData, and
+# only freely-licensed Open5e content may ever be bundled or auto-imported.
+appId: dev.nilbot.tabletop
+productName: NilBot
+files:
+  - electron/**
+  - build/**
+  - package.json
+  # native modules the server needs at runtime
+  - node_modules/better-sqlite3/**
+  - node_modules/sharp/**
+  - node_modules/bindings/**
+  - node_modules/file-uri-to-path/**
+asarUnpack:
+  - node_modules/better-sqlite3/**
+  - node_modules/sharp/**
+linux:
+  target: [AppImage]
+  category: Game
+  icon: electron/icon.png
+win:
+  target: [nsis]
+  icon: electron/icon.png
+mac:
+  target: [dmg]
+  category: public.app-category.games
