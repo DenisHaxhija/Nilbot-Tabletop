@@ -891,7 +891,7 @@
 	}
 	.battle-layout {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 372px;
+		grid-template-columns: minmax(0, 1fr) 392px;
 		gap: 1rem;
 		align-items: start;
 	}
@@ -939,6 +939,7 @@
 		padding: 0.15rem 0.3rem;
 		text-align: center;
 		border-color: var(--accent-2);
+		flex-shrink: 0;
 	}
 	.dmg::placeholder {
 		color: var(--accent-2);
@@ -950,6 +951,7 @@
 		color: var(--muted);
 		padding: 0 0.15rem;
 		font-size: 0.8rem;
+		flex-shrink: 0;
 	}
 	.row-x:hover {
 		color: var(--danger);
@@ -1117,9 +1119,11 @@
 		flex-shrink: 0;
 		border: 1px solid var(--border);
 	}
+	/* The name is the ONLY element allowed to shrink — everything after it
+	   keeps its width so long custom-sheet names can't push controls out. */
 	.cname {
 		flex: 1;
-		min-width: 2.5rem;
+		min-width: 1.5rem;
 		font-size: 0.85rem;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -1130,6 +1134,7 @@
 		font-size: 0.8rem;
 		padding: 0.15rem 0.3rem;
 		text-align: center;
+		flex-shrink: 0;
 	}
 	.hp-wrap {
 		display: flex;
@@ -1137,6 +1142,7 @@
 		gap: 0.15rem;
 		font-size: 0.8rem;
 		color: var(--muted);
+		flex-shrink: 0;
 	}
 	.hp {
 		width: 2.6rem;
