@@ -1,10 +1,14 @@
 <script lang="ts">
 	import Token from '$lib/components/Token.svelte';
 	import { cultures, generateName, generateTavern } from '$lib/names';
+	import { DM_SCREEN } from '$lib/dmscreen';
 	import { invalidateAll } from '$app/navigation';
 	import { confirmDialog } from '$lib/confirm.svelte';
 
 	let { data } = $props();
+
+	let screenTab = $state(DM_SCREEN[0].key);
+	const screenSection = $derived(DM_SCREEN.find((s) => s.key === screenTab) ?? DM_SCREEN[0]);
 
 	// --- Party management ---
 	let addingPc = $state(false);
@@ -330,6 +334,23 @@
 		</ul>
 		<a class="more" href="/names">full generator →</a>
 	</div>
+
+	<div class="panel dm-screen">
+		<p class="panel-label">⛨ DM Screen</p>
+		<div class="screen-tabs">
+			{#each DM_SCREEN as s (s.key)}
+				<button class:on={screenTab === s.key} onclick={() => (screenTab = s.key)}>{s.label}</button>
+			{/each}
+		</div>
+		{#each screenSection.groups as g, gi (gi)}
+			{#if g.title}<h4 class="screen-group">{g.title}</h4>{/if}
+			<div class="screen-cols">
+				{#each g.entries as e (e.t)}
+					<p class="rule"><b>{e.t}.</b> {e.d}</p>
+				{/each}
+			</div>
+		{/each}
+	</div>
 </div>
 
 <div class="stats">
@@ -367,6 +388,51 @@
 		grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 		gap: 1rem;
 		margin: 1.5rem 0;
+	}
+	.dm-screen {
+		grid-column: 1 / -1;
+	}
+	.screen-tabs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		margin-bottom: 0.9rem;
+	}
+	.screen-tabs button {
+		font-size: 0.85rem;
+		padding: 0.25rem 0.75rem;
+		border-radius: 99px;
+		background: transparent;
+		color: var(--muted);
+	}
+	.screen-tabs button:hover {
+		color: var(--text);
+		border-color: var(--accent);
+	}
+	.screen-tabs button.on {
+		color: var(--accent);
+		border-color: var(--accent);
+		background: rgba(127, 191, 127, 0.08);
+	}
+	.screen-group {
+		margin: 0.9rem 0 0.4rem;
+		font-family: var(--serif);
+		color: var(--accent);
+		font-size: 0.98rem;
+	}
+	.screen-cols {
+		columns: 3 300px;
+		column-gap: 1.6rem;
+	}
+	.rule {
+		margin: 0 0 0.55rem;
+		font-size: 0.88rem;
+		line-height: 1.5;
+		color: var(--muted);
+		break-inside: avoid;
+	}
+	.rule b {
+		color: var(--text);
 	}
 	.panel {
 		background: var(--panel);
