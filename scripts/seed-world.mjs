@@ -156,6 +156,233 @@ if (doMaps) {
 	console.log(`maps: +${mapsNew} (of ${maps.length}; ${missing} skipped, file missing)`);
 }
 
+// --- personal layer: the operator's own campaign data → the world DM ---
+// Characters (with portraits), groups, session notes, battles, journal,
+// party PCs, songs, shop stock. IDs are remapped where rows point at each
+// other (battles → notes/maps/pcs, journal parent pages, shop → items).
+
+const srcUser = Number(arg('--from-user', '1'));
+if (!process.argv.includes('--no-personal')) {
+	// character groups — folders are referenced by name, so no remap
+	const haveGroup = new Set(
+		dst.prepare(`SELECT name FROM char_groups WHERE user_id = ?`).all(dm.id).map((r) => r.name)
+	);
+	let gNew = 0;
+	for (const g of src.prepare(`SELECT * FROM char_groups WHERE user_id = ?`).all(srcUser)) {
+		if (haveGroup.has(g.name)) continue;
+		dst.prepare(
+			`INSERT INTO char_groups (user_id, name, created_at, hidden) VALUES (?, ?, ?, ?)`
+		).run(dm.id, g.name, g.created_at, g.hidden ?? 0);
+		gNew++;
+	}
+
+	// characters + portraits
+	const haveChar = new Set(
+		dst.prepare(`SELECT name FROM characters WHERE user_id = ?`).all(dm.id).map((r) => r.name)
+	);
+	let cNew = 0;
+	for (const c of src.prepare(`SELECT * FROM characters WHERE user_id = ?`).all(srcUser)) {
+		if (haveChar.has(c.name)) continue;
+		const info = dst.prepare(
+			`INSERT INTO characters (user_id, name, title, description, notes, file, created_at,
+			                         on_canvas, folder, bytes, sheet_slug, hide_name)
+			 VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?, ?)`
+		).run(
+			dm.id, c.name, c.title ?? '', c.description ?? '', c.notes ?? '', c.created_at,
+			c.on_canvas ?? 0, c.folder ?? '', c.sheet_slug, c.hide_name ?? 0
+		);
+		if (c.file) {
+			const ext = path.extname(c.file) || '.webp';
+			const destKey = `u${dm.id}/characters/${info.lastInsertRowid}${ext}`;
+			if (copyFile(c.file, destKey)) {
+				dst.prepare(`UPDATE characters SET file = ?, bytes = ? WHERE id = ?`).run(
+					destKey, c.bytes ?? 0, info.lastInsertRowid
+				);
+				addedBytes += c.bytes ?? 0;
+			}
+		}
+		cNew++;
+	}
+	console.log(`characters: +${cNew}, groups: +${gNew}`);
+
+	// party pcs + portraits — remembered for battle-token remapping
+	const pcIdMap = new Map();
+	let pNew = 0;
+	for (const p of src.prepare(`SELECT * FROM pcs WHERE user_id = ?`).all(srcUser)) {
+		const existing = dst
+			.prepare(`SELECT id FROM pcs WHERE user_id = ? AND name = ? COLLATE NOCASE`)
+			.get(dm.id, p.name);
+		if (existing) {
+			pcIdMap.set(p.id, existing.id);
+			continue;
+		}
+		const info = dst.prepare(
+			`INSERT INTO pcs (user_id, name, class, file, created_at, bytes, sheet_slug)
+			 VALUES (?, ?, ?, NULL, ?, NULL, ?)`
+		).run(dm.id, p.name, p.class ?? '', p.created_at, p.sheet_slug);
+		pcIdMap.set(p.id, Number(info.lastInsertRowid));
+		if (p.file) {
+			const ext = path.extname(p.file) || '.webp';
+			const destKey = `u${dm.id}/pcs/${info.lastInsertRowid}${ext}`;
+			if (copyFile(p.file, destKey)) {
+				dst.prepare(`UPDATE pcs SET file = ?, bytes = ? WHERE id = ?`).run(
+					destKey, p.bytes ?? 0, info.lastInsertRowid
+				);
+				addedBytes += p.bytes ?? 0;
+			}
+		}
+		pNew++;
+	}
+	console.log(`party pcs: +${pNew}`);
+
+	// notes (sessions/chronicles) — id map feeds battles and quick notes
+	const noteIdMap = new Map();
+	let nNew = 0;
+	for (const n of src.prepare(`SELECT * FROM notes WHERE user_id = ?`).all(srcUser)) {
+		const existing = dst
+			.prepare(`SELECT id FROM notes WHERE user_id = ? AND title = ? AND created_at = ?`)
+			.get(dm.id, n.title, n.created_at);
+		if (existing) {
+			noteIdMap.set(n.id, existing.id);
+			continue;
+		}
+		const info = dst.prepare(
+			`INSERT INTO notes (title, content, created_at, updated_at, user_id, src)
+			 VALUES (?, ?, ?, ?, ?, ?)`
+		).run(n.title, n.content, n.created_at, n.updated_at, dm.id, n.src);
+		noteIdMap.set(n.id, Number(info.lastInsertRowid));
+		nNew++;
+	}
+	console.log(`notes: +${nNew}`);
+
+	// quick notes ride their note
+	let qNew = 0;
+	for (const q of src.prepare(`SELECT * FROM quick_notes WHERE user_id = ?`).all(srcUser)) {
+		const noteId = noteIdMap.get(q.note_id);
+		if (!noteId) continue;
+		const dup = dst
+			.prepare(`SELECT 1 FROM quick_notes WHERE user_id = ? AND note_id = ? AND content = ?`)
+			.get(dm.id, noteId, q.content);
+		if (dup) continue;
+		dst.prepare(
+			`INSERT INTO quick_notes (note_id, user_id, content, created_at) VALUES (?, ?, ?, ?)`
+		).run(noteId, dm.id, q.content, q.created_at);
+		qNew++;
+	}
+
+	// journal pages — two passes so parent links survive the id change
+	const jIdMap = new Map();
+	let jNew = 0;
+	const jPages = src.prepare(`SELECT * FROM journal_pages WHERE user_id = ?`).all(srcUser);
+	for (const j of jPages) {
+		const existing = dst
+			.prepare(`SELECT id FROM journal_pages WHERE user_id = ? AND title = ? AND section = ?`)
+			.get(dm.id, j.title, j.section);
+		if (existing) {
+			jIdMap.set(j.id, existing.id);
+			continue;
+		}
+		const info = dst.prepare(
+			`INSERT INTO journal_pages (user_id, title, section, content, created_at, updated_at, parent_id)
+			 VALUES (?, ?, ?, ?, ?, ?, NULL)`
+		).run(dm.id, j.title, j.section, j.content, j.created_at, j.updated_at);
+		jIdMap.set(j.id, Number(info.lastInsertRowid));
+		jNew++;
+	}
+	for (const j of jPages) {
+		if (j.parent_id && jIdMap.has(j.id) && jIdMap.has(j.parent_id)) {
+			dst.prepare(`UPDATE journal_pages SET parent_id = ? WHERE id = ? AND parent_id IS NULL`).run(
+				jIdMap.get(j.parent_id), jIdMap.get(j.id)
+			);
+		}
+	}
+	console.log(`journal pages: +${jNew}, quick notes: +${qNew}`);
+
+	// battle-map id map: source map id → world map id (matched by src/name)
+	const mapIdMap = new Map();
+	for (const m of src.prepare(`SELECT id, src, name FROM maps`).all()) {
+		const hit = m.src
+			? dst.prepare(`SELECT id FROM maps WHERE src = ?`).get(m.src)
+			: dst.prepare(`SELECT id FROM maps WHERE name = ?`).get(m.name);
+		if (hit) mapIdMap.set(m.id, hit.id);
+	}
+
+	// battles — note, map and pc-token references all remapped
+	let bNew = 0;
+	for (const b of src.prepare(`SELECT * FROM battles WHERE user_id = ?`).all(srcUser)) {
+		const existing = dst
+			.prepare(`SELECT 1 FROM battles WHERE user_id = ? AND title = ? AND created_at = ?`)
+			.get(dm.id, b.title, b.created_at);
+		if (existing) continue;
+		let mapJson = b.map;
+		if (mapJson) {
+			try {
+				const m = JSON.parse(mapJson);
+				if (m.mapId && mapIdMap.has(m.mapId)) m.mapId = mapIdMap.get(m.mapId);
+				for (const t of m.tokens ?? []) {
+					const pcRef = /^\/api\/pcs\/(\d+)$/.exec(t.img ?? '');
+					if (pcRef && pcIdMap.has(Number(pcRef[1]))) {
+						t.img = `/api/pcs/${pcIdMap.get(Number(pcRef[1]))}`;
+					}
+				}
+				mapJson = JSON.stringify(m);
+			} catch {
+				// unparseable payload — carried as-is
+			}
+		}
+		dst.prepare(
+			`INSERT INTO battles (note_id, title, description, data, created_at, map, user_id, published)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, 0)`
+		).run(noteIdMap.get(b.note_id) ?? 0, b.title, b.description ?? '', b.data, b.created_at, mapJson, dm.id);
+		bNew++;
+	}
+	console.log(`battles: +${bNew}`);
+
+	// songs (+ audio files when stored locally)
+	let soNew = 0;
+	for (const s of src.prepare(`SELECT * FROM songs WHERE user_id = ?`).all(srcUser)) {
+		const dup = dst
+			.prepare(`SELECT 1 FROM songs WHERE user_id = ? AND name = ? AND grp = ?`)
+			.get(dm.id, s.name, s.grp ?? '');
+		if (dup) continue;
+		const info = dst.prepare(
+			`INSERT INTO songs (user_id, name, grp, url, file, created_at, bytes)
+			 VALUES (?, ?, ?, ?, NULL, ?, NULL)`
+		).run(dm.id, s.name, s.grp ?? '', s.url, s.created_at);
+		if (s.file) {
+			const ext = path.extname(s.file) || '.mp3';
+			const destKey = `u${dm.id}/music/${info.lastInsertRowid}${ext}`;
+			if (copyFile(s.file, destKey)) {
+				dst.prepare(`UPDATE songs SET file = ?, bytes = ? WHERE id = ?`).run(
+					destKey, s.bytes ?? 0, info.lastInsertRowid
+				);
+				addedBytes += s.bytes ?? 0;
+			}
+		}
+		soNew++;
+	}
+
+	// shop stock — item ids cross the bridge by slug
+	let stNew = 0;
+	for (const st of src.prepare(`SELECT * FROM shop_stock WHERE user_id = ?`).all(srcUser)) {
+		const slug = src.prepare(`SELECT slug FROM items WHERE id = ?`).get(st.item_id)?.slug;
+		if (!slug) continue;
+		const target = dst.prepare(`SELECT id FROM items WHERE slug = ?`).get(slug);
+		if (!target) continue;
+		const dup = dst
+			.prepare(`SELECT 1 FROM shop_stock WHERE user_id = ? AND item_id = ?`)
+			.get(dm.id, target.id);
+		if (dup) continue;
+		const cols = Object.keys(st).filter((k) => !['user_id', 'item_id'].includes(k));
+		dst.prepare(
+			`INSERT INTO shop_stock (user_id, item_id${cols.map((c) => `, ${c}`).join('')})
+			 VALUES (?, ?${cols.map(() => ', ?').join('')})`
+		).run(dm.id, target.id, ...cols.map((c) => st[c]));
+		stNew++;
+	}
+	console.log(`songs: +${soNew}, shop stock: +${stNew}`);
+}
+
 if (addedBytes) {
 	dst.prepare(`UPDATE users SET storage_bytes = storage_bytes + ? WHERE id = ?`).run(addedBytes, dm.id);
 }
