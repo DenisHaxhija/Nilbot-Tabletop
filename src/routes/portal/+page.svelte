@@ -128,6 +128,8 @@
 		invalidateAll();
 	}
 
+	// Active claimed keys are revoked (audit trail stays); unclaimed and
+	// already-revoked keys can be deleted for good.
 	async function removeInvite(inv: { id: number; player_name: string; claimed_at: string | null }) {
 		if (inv.claimed_at) {
 			const ok = await confirmDialog({
@@ -142,6 +144,24 @@
 			method: 'DELETE',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ id: inv.id, hard: !inv.claimed_at })
+		});
+		invalidateAll();
+	}
+
+	async function deleteInvite(inv: { id: number; player_name: string; claimed_at: string | null }) {
+		const ok = await confirmDialog({
+			title: 'Delete this key forever?',
+			message: inv.claimed_at
+				? `The revoked key and ${inv.player_name}'s seat account vanish for good. Cut a fresh key to invite them again.`
+				: `${inv.player_name}'s unused key vanishes for good.`,
+			confirmLabel: 'Delete',
+			danger: true
+		});
+		if (!ok) return;
+		await fetch('/api/portal/invites', {
+			method: 'DELETE',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ id: inv.id, hard: true })
 		});
 		invalidateAll();
 	}
@@ -294,29 +314,41 @@
 						<span class="inv-state">
 							{#if inv.revoked}revoked{:else if inv.claimed_at}claimed ✓{:else}unclaimed{/if}
 						</span>
-						{#if !inv.revoked}
-							<div class="inv-actions">
-								{#if !inv.claimed_at}
-									<button
-										class="inv-copy"
-										title="Copy invite — paste it to your player anywhere"
-										onclick={() =>
-											navigator.clipboard.writeText(inviteText(inv.code, inv.player_name))}
-										>⧉ invite</button
-									>
-									<a
-										class="inv-copy"
-										title="Email the invite"
-										href={mailtoInvite(inv.code, inv.player_name)}>✉</a
-									>
-								{/if}
+						<div class="inv-actions">
+							{#if !inv.revoked && !inv.claimed_at}
+								<button
+									class="inv-copy"
+									title="Copy invite — paste it to your player anywhere"
+									onclick={() =>
+										navigator.clipboard.writeText(inviteText(inv.code, inv.player_name))}
+									>⧉ invite</button
+								>
+								<a
+									class="inv-copy"
+									title="Email the invite"
+									href={mailtoInvite(inv.code, inv.player_name)}>✉</a
+								>
+							{/if}
+							{#if inv.revoked}
 								<button
 									class="inv-del"
-									title={inv.claimed_at ? 'Revoke — shuts their door' : 'Delete unused key'}
+									title="Delete this key forever"
+									onclick={() => deleteInvite(inv)}>🗑 delete</button
+								>
+							{:else if inv.claimed_at}
+								<button
+									class="inv-del"
+									title="Revoke — shuts their door"
 									onclick={() => removeInvite(inv)}>✕</button
 								>
-							</div>
-						{/if}
+							{:else}
+								<button
+									class="inv-del"
+									title="Delete unused key"
+									onclick={() => deleteInvite(inv)}>✕</button
+								>
+							{/if}
+						</div>
 					</li>
 				{/each}
 			</ul>

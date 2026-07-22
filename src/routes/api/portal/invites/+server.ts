@@ -60,14 +60,22 @@ export async function POST({ request, locals }) {
 	return json({ ok: true, id: info.lastInsertRowid, code });
 }
 
-// Revoke (keeps the audit trail); unclaimed keys may be hard-deleted.
+// Revoke (keeps the audit trail). Hard delete is allowed for keys that are
+// unclaimed or already revoked — an active claimed key must be revoked
+// first. Deleting a claimed key also removes the player account it minted.
 export async function DELETE({ request, locals }) {
 	const { id, hard } = await request.json();
 	const row = db
-		.prepare('SELECT id, claimed_at FROM invites WHERE id = ? AND user_id = ?')
-		.get(Number(id), locals.user!.id) as { id: number; claimed_at: string | null } | undefined;
+		.prepare('SELECT id, claimed_at, claimed_by, revoked FROM invites WHERE id = ? AND user_id = ?')
+		.get(Number(id), locals.user!.id) as
+		| { id: number; claimed_at: string | null; claimed_by: number | null; revoked: number }
+		| undefined;
 	if (!row) return json({ ok: true });
-	if (hard && !row.claimed_at) {
+	if (hard && (!row.claimed_at || row.revoked)) {
+		if (row.claimed_by) {
+			db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').run(row.claimed_by);
+			db.prepare(`DELETE FROM users WHERE id = ? AND role = 'player'`).run(row.claimed_by);
+		}
 		db.prepare('DELETE FROM invites WHERE id = ?').run(row.id);
 	} else {
 		db.prepare('UPDATE invites SET revoked = 1 WHERE id = ?').run(row.id);
