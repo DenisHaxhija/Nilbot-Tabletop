@@ -63,6 +63,24 @@
 				<p class="fine">empty-handed — your DM holds the purse strings</p>
 			{/if}
 		</section>
+
+		{#if data.me.spells.length}
+			<section class="panel wide">
+				<h2>Spells Granted</h2>
+				<ul class="items">
+					{#each data.me.spells as sp, i (i)}
+						<li>✦ {sp}</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
+
+		{#if data.me.backstory}
+			<section class="panel wide">
+				<h2>Backstory</h2>
+				<p class="story">{data.me.backstory}</p>
+			</section>
+		{/if}
 	</div>
 	<p class="whisper">Your DM shapes this sheet from their Portal — what you see is live.</p>
 {:else}
@@ -183,6 +201,11 @@
 		color: var(--muted);
 		font-style: italic;
 		margin: 0;
+	}
+	.story {
+		margin: 0;
+		line-height: 1.55;
+		white-space: pre-wrap;
 	}
 	.whisper {
 		color: var(--muted);

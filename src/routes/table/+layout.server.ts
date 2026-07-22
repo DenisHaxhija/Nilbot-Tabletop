@@ -9,7 +9,8 @@ export function load({ locals }) {
 	const mine = seat.pcId
 		? (db
 				.prepare(
-					`SELECT id, name, class, level, gold, conditions, str, dex, con, intel, wis, cha, items
+					`SELECT id, name, class, level, gold, conditions, str, dex, con, intel, wis, cha,
+					        items, spells, backstory
 					 FROM pcs WHERE id = ? AND user_id = ?`
 				)
 				.get(seat.pcId, seat.dmId) as
@@ -27,6 +28,8 @@ export function load({ locals }) {
 						wis: number;
 						cha: number;
 						items: string;
+						spells: string;
+						backstory: string;
 				  }
 				| undefined)
 		: undefined;
@@ -50,7 +53,9 @@ export function load({ locals }) {
 						wis: mine.wis,
 						cha: mine.cha
 					},
-					items: parseItems(mine.items)
+					items: parseItems(mine.items),
+					spells: parseItems(mine.spells),
+					backstory: mine.backstory
 				}
 			: null
 	};

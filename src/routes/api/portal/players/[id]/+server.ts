@@ -11,11 +11,11 @@ const STAT_KEYS = ['str', 'dex', 'con', 'intel', 'wis', 'cha'];
 
 function getRow(id: string, userId: number) {
 	return db.prepare('SELECT * FROM pcs WHERE id = ? AND user_id = ?').get(Number(id), userId) as
-		| { id: number; gold: number; conditions: string; level: number; items: string }
+		| { id: number; gold: number; conditions: string; level: number; items: string; spells: string }
 		| undefined;
 }
 
-function parseItems(raw: string): string[] {
+function parseList(raw: string): string[] {
 	try {
 		const v = JSON.parse(raw);
 		return Array.isArray(v) ? v.map(String) : [];
@@ -24,10 +24,35 @@ function parseItems(raw: string): string[] {
 	}
 }
 
+// One JSON-array column (items or spells) gets an entry added/removed.
+function editList(row: { id: number }, raw: string, col: 'items' | 'spells', add?: unknown, removeAt?: unknown) {
+	const list = parseList(raw);
+	let changed = false;
+	if (typeof add === 'string' && add.trim()) {
+		list.push(add.trim().slice(0, 120));
+		changed = true;
+	}
+	if (typeof removeAt === 'number' && Number.isInteger(removeAt) && removeAt >= 0 && removeAt < list.length) {
+		list.splice(removeAt, 1);
+		changed = true;
+	}
+	if (changed) db.prepare(`UPDATE pcs SET ${col} = ? WHERE id = ?`).run(JSON.stringify(list), row.id);
+}
+
 export async function PATCH({ params, request, locals }) {
 	const row = getRow(params.id, locals.user!.id);
 	if (!row) error(404, 'Player not found');
 	const body = await request.json();
+
+	if (typeof body.name === 'string' && body.name.trim()) {
+		db.prepare('UPDATE pcs SET name = ? WHERE id = ?').run(body.name.trim().slice(0, 80), row.id);
+	}
+	if (typeof body.class === 'string') {
+		db.prepare('UPDATE pcs SET class = ? WHERE id = ?').run(body.class.trim().slice(0, 40), row.id);
+	}
+	if (typeof body.backstory === 'string') {
+		db.prepare('UPDATE pcs SET backstory = ? WHERE id = ?').run(body.backstory.slice(0, 20000), row.id);
+	}
 
 	if (typeof body.goldDelta === 'number' && Number.isFinite(body.goldDelta)) {
 		const gold = Math.max(0, row.gold + Math.round(body.goldDelta));
@@ -47,18 +72,8 @@ export async function PATCH({ params, request, locals }) {
 		db.prepare(`UPDATE pcs SET ${statKey} = ? WHERE id = ?`).run(value, row.id);
 	}
 
-	if (typeof body.addItem === 'string' && body.addItem.trim()) {
-		const items = parseItems(row.items);
-		items.push(body.addItem.trim().slice(0, 120));
-		db.prepare('UPDATE pcs SET items = ? WHERE id = ?').run(JSON.stringify(items), row.id);
-	}
-	if (typeof body.removeItem === 'number' && Number.isInteger(body.removeItem)) {
-		const items = parseItems(row.items);
-		if (body.removeItem >= 0 && body.removeItem < items.length) {
-			items.splice(body.removeItem, 1);
-			db.prepare('UPDATE pcs SET items = ? WHERE id = ?').run(JSON.stringify(items), row.id);
-		}
-	}
+	editList(row, row.items, 'items', body.addItem, body.removeItem);
+	editList(row, row.spells, 'spells', body.addSpell, body.removeSpell);
 
 	const current = new Set(row.conditions.split(',').filter(Boolean));
 	if (typeof body.addCondition === 'string' && CONDITIONS.includes(body.addCondition)) {

@@ -288,7 +288,9 @@ for (const colDef of [
 	`intel INTEGER NOT NULL DEFAULT 10`,
 	`wis INTEGER NOT NULL DEFAULT 10`,
 	`cha INTEGER NOT NULL DEFAULT 10`,
-	`items TEXT NOT NULL DEFAULT '[]'`
+	`items TEXT NOT NULL DEFAULT '[]'`,
+	`spells TEXT NOT NULL DEFAULT '[]'`,
+	`backstory TEXT NOT NULL DEFAULT ''`
 ]) {
 	try {
 		db.exec(`ALTER TABLE pcs ADD COLUMN ${colDef}`);
