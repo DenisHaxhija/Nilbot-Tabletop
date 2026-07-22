@@ -21,14 +21,14 @@
 	const sections = [
 		{
 			label: '',
-			items: [{ href: '/notes', label: 'Sessions', icon: '✎' }]
+			items: [{ href: '/notes', label: 'Chronicles', icon: '✎' }]
 		},
 		{
 			label: 'Combat',
 			items: [
 				{ href: '/battles', label: 'Battles', icon: '⚔' },
-				{ href: '/present', label: 'Battle Ready', icon: '📺' },
-				{ href: '/maps', label: 'Battle Maps', icon: '🗺' }
+				{ href: '/present', label: 'The Table', icon: '📺' },
+				{ href: '/maps', label: 'Battlegrounds', icon: '🗺' }
 			]
 		},
 		{
@@ -36,17 +36,17 @@
 			items: [
 				{ href: '/bestiary', label: 'Bestiary', icon: '🐉' },
 				{ href: '/spells', label: 'The Grimoire', icon: '✨' },
-				{ href: '/builder', label: 'Sheet Builder', icon: '✦' }
+				{ href: '/builder', label: 'The Forge', icon: '✦' }
 			]
 		},
 		{
 			label: 'World',
 			items: [
 				{ href: '/characters', label: 'Characters', icon: '🎭' },
-				{ href: '/worldmaps', label: 'World Maps', icon: '🌍' },
+				{ href: '/worldmaps', label: 'The Atlas', icon: '🌍' },
 				{ href: '/shop', label: 'The Emporium', icon: '⚖' },
-				{ href: '/music', label: 'Music', icon: '♪' },
-				{ href: '/names', label: 'Name Generator', icon: '⚄' }
+				{ href: '/music', label: 'The Bard', icon: '♪' },
+				{ href: '/names', label: 'The Namesmith', icon: '⚄' }
 			]
 		}
 	];
@@ -322,12 +322,14 @@
 		gap: 0.2rem;
 	}
 	.nav-caption {
-		font-size: 0.68rem;
+		font-family: var(--pixel);
+		font-size: 0.85rem;
 		text-transform: uppercase;
-		letter-spacing: 0.09em;
-		color: var(--muted);
-		opacity: 0.75;
+		letter-spacing: 0.14em;
+		color: var(--accent);
+		opacity: 0.65;
 		padding: 0.7rem 0.6rem 0.15rem;
+		text-shadow: 1px 1px 0 #0b0c1e;
 	}
 	.nav-divider {
 		display: block;
@@ -341,9 +343,11 @@
 		gap: 0.6rem;
 		color: var(--text);
 		text-decoration: none;
-		font-size: 0.95rem;
-		padding: 0.45rem 0.6rem;
-		border-radius: 6px;
+		font-family: var(--pixel);
+		font-size: 1.2rem;
+		letter-spacing: 0.05em;
+		text-shadow: 1px 1px 0 #0b0c1e;
+		padding: 0.4rem 0.6rem;
 		border-left: 2px solid transparent;
 		transition: background 0.15s ease, color 0.15s ease;
 	}
@@ -374,6 +378,10 @@
 		margin: 0;
 	}
 	.settings-link {
+		font-family: var(--pixel);
+		font-size: 1.15rem;
+		letter-spacing: 0.05em;
+		text-shadow: 1px 1px 0 #0b0c1e;
 		display: flex;
 		align-items: center;
 		gap: 0.6rem;

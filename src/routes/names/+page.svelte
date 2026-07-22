@@ -19,7 +19,7 @@
 
 <svelte:head><title>Name Generator · NilBot</title></svelte:head>
 
-<h1>Name Generator</h1>
+<h1>⚄ The Namesmith</h1>
 
 <div class="grid">
 	<section>

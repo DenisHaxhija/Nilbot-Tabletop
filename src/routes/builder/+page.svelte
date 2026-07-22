@@ -178,7 +178,7 @@
 
 <svelte:head><title>Sheet Builder · NilBot</title></svelte:head>
 
-<h1>Sheet Builder</h1>
+<h1>✦ The Forge</h1>
 <p class="tip">
 	{#if editingSlug}
 		Editing <b>{sheet?.name}</b> — revise it in chat, flip on hand editing for direct control,

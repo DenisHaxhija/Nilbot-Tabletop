@@ -73,7 +73,7 @@
 
 <svelte:head><title>Music · NilBot</title></svelte:head>
 
-<h1>Music</h1>
+<h1>♪ The Bard</h1>
 <p class="tip">
 	Your table soundtrack, grouped by mood or scene. Upload audio files to play them right here
 	(looping, for ambience), or add Spotify/YouTube links to open externally.

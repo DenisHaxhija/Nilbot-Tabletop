@@ -18,7 +18,7 @@
 <svelte:head><title>Sessions · NilBot</title></svelte:head>
 
 <div class="head">
-	<h1>Sessions</h1>
+	<h1>✎ Chronicles</h1>
 	<form method="POST" action="?/create">
 		<button type="submit" class="new-btn">＋ Create session</button>
 	</form>

@@ -82,7 +82,7 @@
 
 <svelte:head><title>Maps · NilBot</title></svelte:head>
 
-<h1>Battle Maps <span class="count">{data.total.toLocaleString()}</span></h1>
+<h1>🗺 Battlegrounds <span class="count">{data.total.toLocaleString()}</span></h1>
 <p class="showing">
 	{#if data.tag}
 		{data.filtered.toLocaleString()} {data.tag === 'untagged' ? 'untagged' : data.tag} maps ·

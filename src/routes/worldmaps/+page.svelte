@@ -49,7 +49,7 @@
 
 <svelte:head><title>World Maps · NilBot</title></svelte:head>
 
-<h1>World Maps</h1>
+<h1>🌍 The Atlas</h1>
 <p class="tip">
 	Your world, region, and city maps. <b>▶ Present</b> shows one on the TV with zoom and pan.
 </p>

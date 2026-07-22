@@ -18,7 +18,7 @@
 
 <svelte:head><title>Battle Ready · NilBot</title></svelte:head>
 
-<h1>Battle Ready</h1>
+<h1>📺 The Table</h1>
 <p class="tip">
 	Pick a battle to show on the TV — the view is player-safe (map and tokens only, no stat
 	blocks) and follows your token moves live.
