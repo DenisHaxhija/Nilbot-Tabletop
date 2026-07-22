@@ -22,6 +22,7 @@
 
 {#if img && !broken}
 	<img
+		class="roundel"
 		src={img}
 		alt={name}
 		title={name}

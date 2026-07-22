@@ -240,6 +240,18 @@
 	:global(*)::after {
 		border-radius: 0 !important;
 	}
+	/* …except true circles: battle-map tokens, their badges, tracker minis
+	   and portrait roundels stay round — square frames over round token art
+	   read as broken. */
+	:global(.tok),
+	:global(.tok .corner),
+	:global(.tok-x),
+	:global(.mini),
+	:global(.results img),
+	:global(.results .dot),
+	:global(img.roundel) {
+		border-radius: 50% !important;
+	}
 	.to-menu {
 		position: fixed;
 		bottom: 14px;
