@@ -28,7 +28,8 @@
 		</div>
 
 		<nav>
-			<a href="/table" class:active={active('/table')}>🎲 My Sheet</a>
+			<a href="/table" class:active={active('/table')}>🐈‍⬛ Overview</a>
+			<a href="/table/sheet" class:active={active('/table/sheet')}>🎲 My Sheet</a>
 			{#if info && info.caster !== 'none'}
 				<a href="/table/spells" class:active={active('/table/spells')}>✦ Spells</a>
 			{/if}
