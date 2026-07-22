@@ -12,7 +12,7 @@
 
 <svelte:head><title>Spells · NilBot</title></svelte:head>
 
-<h1>Spells</h1>
+<h1>✦ The Grimoire</h1>
 
 <form method="GET" class="filters">
 	<input type="search" name="q" placeholder="Search spells…" value={data.filters.q} />

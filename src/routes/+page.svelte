@@ -7,6 +7,16 @@
 
 	let { data } = $props();
 
+	// A different whisper each visit to the sanctum.
+	const FLAVOR = [
+		'The Weave hums, awaiting your command.',
+		'Somewhere out there, a party approaches your dungeon.',
+		'Ink, dice, and a little arcana.',
+		'The table is set. The tale is yours.',
+		'Every empty page is an unrolled map.'
+	];
+	const flavorLine = FLAVOR[Math.floor(Math.random() * FLAVOR.length)];
+
 	let screenTab = $state(DM_SCREEN[0].key);
 	const screenSection = $derived(DM_SCREEN.find((s) => s.key === screenTab) ?? DM_SCREEN[0]);
 
@@ -143,12 +153,12 @@
 	}
 </script>
 
-<svelte:head><title>NilBot — DM's workbench</title></svelte:head>
+<svelte:head><title>NilBot Tabletop</title></svelte:head>
 
 <div class="top">
 	<div>
-		<h1>Welcome back, {data.dmName}</h1>
-		<p class="tagline">Write the session — NilBot handles the rest.</p>
+		<h1>Well met, {data.dmName}</h1>
+		<p class="tagline">{flavorLine}</p>
 	</div>
 	<form method="POST" action="/notes?/create">
 		<button class="primary" type="submit">＋ New session</button>

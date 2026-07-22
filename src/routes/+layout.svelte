@@ -1,10 +1,12 @@
 <script lang="ts">
 	import '@fontsource/cinzel/600.css';
 	import '@fontsource/cinzel/700.css';
+	import '@fontsource/vt323/index.css';
 	import goblin from '$lib/assets/goblin.png';
 	import { page } from '$app/state';
 	import { browser } from '$app/environment';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import ManaField from '$lib/components/ManaField.svelte';
 	let { children } = $props();
 
 	// Icon-only rail when collapsed; remembered per browser.
@@ -33,7 +35,7 @@
 			label: 'Library',
 			items: [
 				{ href: '/bestiary', label: 'Bestiary', icon: '🐉' },
-				{ href: '/spells', label: 'Spells', icon: '✨' },
+				{ href: '/spells', label: 'The Grimoire', icon: '✨' },
 				{ href: '/builder', label: 'Sheet Builder', icon: '✦' }
 			]
 		},
@@ -42,7 +44,7 @@
 			items: [
 				{ href: '/characters', label: 'Characters', icon: '🎭' },
 				{ href: '/worldmaps', label: 'World Maps', icon: '🌍' },
-				{ href: '/shop', label: 'Shop', icon: '🛒' },
+				{ href: '/shop', label: 'The Emporium', icon: '⚖' },
 				{ href: '/music', label: 'Music', icon: '♪' },
 				{ href: '/names', label: 'Name Generator', icon: '⚄' }
 			]
@@ -55,6 +57,15 @@
 			page.url.pathname === '/present/canvas' ||
 			page.url.pathname === '/present/shop'
 	);
+
+	// Room dialects: the route drives the accent palette (see CSS below).
+	const room = $derived(
+		page.url.pathname.startsWith('/shop')
+			? 'shop'
+			: page.url.pathname.startsWith('/spells')
+				? 'spells'
+				: ''
+	);
 </script>
 
 <svelte:head>
@@ -65,7 +76,8 @@
 {#if bare}
 	{@render children()}
 {:else}
-	<div class="shell" class:rail={collapsed}>
+	<ManaField />
+	<div class="shell" class:rail={collapsed} data-room={room}>
 		<aside class="sidebar">
 			<div class="brand-row">
 				<a class="brand" href="/" title="NilBot">
@@ -119,37 +131,55 @@
 			{@render children()}
 		</main>
 	</div>
+	<!-- Back to the game's title screen (the shell intercepts /__title). -->
+	<a class="to-menu" href="/__title" data-sveltekit-reload>◀ MENU</a>
 {/if}
 
 <ConfirmDialog />
 
 <style>
+	/* NilBot Tabletop — the archmage's sanctum. Diverged from web NilBot on
+	   purpose: arcane palette, pixel type, square corners, living backdrop. */
 	:global(:root) {
-		--bg: #16181d;
-		--panel: #1e2128;
-		--panel-2: #262a33;
-		--border: #343945;
-		--text: #d8dae0;
-		--muted: #8a8f9c;
-		--accent: #7fbf7f;
-		--accent-2: #a3512e;
-		--danger: #e06c5b;
-		--serif: Georgia, 'Times New Roman', serif;
+		--bg: #12142a;
+		--panel: #1a1d3a;
+		--panel-2: #232752;
+		--border: #3a3f6e;
+		--text: #d6d9ee;
+		--muted: #8b90b8;
+		--accent: #7ee0e8;
+		--accent-2: #5a4a9e;
+		--danger: #ff8a9a;
+		--serif: 'VT323', monospace;
+		--pixel: 'VT323', monospace;
 		color-scheme: dark;
+	}
+	/* Room dialects: same language, different accent. */
+	:global(.shell[data-room='shop']) {
+		--accent: #ffd37a;
+		--accent-2: #8a6a30;
+	}
+	:global(.shell[data-room='spells']) {
+		--accent: #b48aff;
+		--accent-2: #5f3f9e;
+	}
+	:global(html) {
+		background: #12142a;
 	}
 	:global(body) {
 		margin: 0;
-		background: var(--bg);
+		background: transparent; /* the ManaField canvas shows through */
 		color: var(--text);
 		font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 		line-height: 1.55;
 	}
 	:global(h1, h2, h3) {
-		font-family: var(--serif);
-		letter-spacing: 0.01em;
+		font-family: var(--pixel);
+		letter-spacing: 0.06em;
+		text-shadow: 2px 2px 0 #0b0c1e;
 	}
 	:global(h1) {
-		font-size: 1.7rem;
+		font-size: 2.1rem;
 	}
 	:global(a) {
 		color: var(--accent);
@@ -157,9 +187,9 @@
 	:global(input, select, textarea, button) {
 		background: var(--panel-2);
 		color: var(--text);
-		border: 1px solid var(--border);
-		border-radius: 6px;
-		padding: 0.45rem 0.6rem;
+		border: 2px solid var(--border);
+		border-radius: 0;
+		padding: 0.4rem 0.6rem;
 		font: inherit;
 		transition: border-color 0.15s ease, background 0.15s ease;
 	}
@@ -174,18 +204,43 @@
 		outline-offset: 1px;
 	}
 	:global(::selection) {
-		background: rgba(127, 191, 127, 0.35);
+		background: rgba(126, 224, 232, 0.35);
 	}
 	:global(::-webkit-scrollbar) {
-		width: 10px;
-		height: 10px;
+		width: 12px;
+		height: 12px;
 	}
 	:global(::-webkit-scrollbar-thumb) {
 		background: var(--border);
-		border-radius: 6px;
+		border: 3px solid #12142a;
+		border-radius: 0;
 	}
 	:global(::-webkit-scrollbar-track) {
 		background: transparent;
+	}
+	/* Pixel discipline everywhere. */
+	:global(*),
+	:global(*)::before,
+	:global(*)::after {
+		border-radius: 0 !important;
+	}
+	.to-menu {
+		position: fixed;
+		bottom: 14px;
+		right: 14px;
+		z-index: 999;
+		background: rgba(18, 20, 42, 0.92);
+		color: var(--accent);
+		border: 2px solid var(--border);
+		padding: 5px 12px;
+		font-family: var(--pixel);
+		font-size: 0.95rem;
+		letter-spacing: 0.08em;
+		text-decoration: none;
+	}
+	.to-menu:hover {
+		color: #ffe98a;
+		border-color: var(--accent);
 	}
 
 	.shell {
@@ -242,7 +297,7 @@
 		box-sizing: border-box;
 	}
 	.brand {
-		font-family: 'Cinzel', var(--serif);
+		font-family: var(--pixel);
 		font-weight: 700;
 		font-size: 1.3rem;
 		color: var(--accent);

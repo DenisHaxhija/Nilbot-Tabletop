@@ -72,7 +72,7 @@
 <svelte:head><title>Shop · NilBot</title></svelte:head>
 
 <div class="head">
-	<h1>Shop</h1>
+	<h1>⚖ The Emporium</h1>
 	<div class="head-actions">
 		<a class="present-link" href="/present/shop" target="_blank">▶ Present shop</a>
 		<button onclick={() => (showCustom = !showCustom)}>＋ Custom item</button>

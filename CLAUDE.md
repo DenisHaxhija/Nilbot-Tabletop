@@ -1,3 +1,27 @@
+# NilBot Tabletop — read this before touching the repo
+
+**This is the game.** NilBot-Tabletop is a history-preserving fork of
+[NilBot](https://github.com/DenisHaxhija/Nilbot) that ships as a desktop
+app (Electron, `electron/`) styled as a pixel-art game — eventually for
+Steam. Unlike the web repo, **`src/` here is ours to change freely**:
+the arcane theme, room names (The Emporium, The Grimoire), campaign
+save-slots and no-login flow are first-class code, not injections.
+
+Rules of the fork:
+- The web repo (NilBot) remains the production web app — never push
+  from here to it. Pull improvements FROM it: `git fetch upstream &&
+  git merge upstream/main` (shared history keeps merges clean).
+- `npm run desktop` builds and launches the game. Campaign worlds live
+  in the OS user-data dir, one directory per campaign.
+- Distribution rule inherited and doubled: only freely-licensed
+  (Open5e/CC) content may ever ship in a build.
+
+The sections below are inherited from upstream NilBot and describe the
+shared core (storage seam, shared layers, conventions). They still
+apply to `src/` here.
+
+---
+
 # NilBot — read this before touching the repo
 
 NilBot is a self-hosted D&D DM workbench (SvelteKit + Svelte 5 runes,
