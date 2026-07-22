@@ -269,6 +269,18 @@ try {
 } catch {
 	// column already present
 }
+// Tabletop Portal: the DM inflicts and bestows — gold and conditions live
+// on the player characters.
+try {
+	db.exec(`ALTER TABLE pcs ADD COLUMN gold INTEGER NOT NULL DEFAULT 0`);
+} catch {
+	// column already present
+}
+try {
+	db.exec(`ALTER TABLE pcs ADD COLUMN conditions TEXT NOT NULL DEFAULT ''`);
+} catch {
+	// column already present
+}
 // Size of each stored user file, so deletes can decrement usage on any backend.
 for (const [table, col] of [
 	['maps', 'bytes'],

@@ -20,12 +20,14 @@
 		}
 	> = {
 		'': { top: '#101228', mid: '#12142a', low: '#1a1636', a: [126, 224, 232], b: [180, 138, 255], dir: -1, speed: 1, stars: true },
+		portal: { top: '#151228', mid: '#181430', low: '#241c40', a: [160, 140, 199], b: [126, 224, 232], dir: -1, speed: 0.8, stars: true },
 		combat: { top: '#190f16', mid: '#1c1014', low: '#2e1410', a: [255, 154, 60], b: [232, 100, 44], dir: -1, speed: 1.3, stars: false },
 		library: { top: '#120f2c', mid: '#151232', low: '#241646', a: [180, 138, 255], b: [226, 160, 255], dir: -1, speed: 1.6, stars: true },
 		world: { top: '#141126', mid: '#171228', low: '#2a1e30', a: [255, 211, 122], b: [232, 167, 92], dir: 1, speed: 0.6, stars: true }
 	};
 
 	function sectionOf(p: string): string {
+		if (p.startsWith('/portal')) return 'portal';
 		if (/^\/(battles|present|maps)/.test(p)) return 'combat';
 		if (/^\/(bestiary|spells|builder)/.test(p)) return 'library';
 		if (/^\/(characters|worldmaps|shop|music|names)/.test(p)) return 'world';
