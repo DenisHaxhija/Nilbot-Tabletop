@@ -2,6 +2,8 @@
 	import { mod } from '$lib/classnotes';
 	let { data } = $props();
 
+	let openItem = $state<number | null>(null);
+
 	const STATS: { key: 'str' | 'dex' | 'con' | 'intel' | 'wis' | 'cha'; label: string }[] = [
 		{ key: 'str', label: 'STR' },
 		{ key: 'dex', label: 'DEX' },
@@ -54,11 +56,31 @@
 		<section class="panel wide">
 			<h2>Items</h2>
 			{#if data.me.items.length}
-				<ul class="items">
+				<div class="itemlist">
 					{#each data.me.items as it, i (i)}
-						<li>{it}</li>
+						<div class="item" class:open={openItem === i} class:plain={!it.desc}>
+							<button
+								class="item-head"
+								disabled={!it.desc}
+								onclick={() => (openItem = openItem === i ? null : i)}
+							>
+								<b>{it.name}</b>
+								{#if it.type || it.rarity}
+									<small>
+										{[it.type, it.rarity].filter(Boolean).join(' · ')}
+									</small>
+								{/if}
+								{#if it.desc}<span class="arrow">{openItem === i ? '▾' : '▸'}</span>{/if}
+							</button>
+							{#if openItem === i && it.desc}
+								<div class="item-body">
+									{#if it.attunement}<p class="fine">{it.attunement}</p>{/if}
+									<p class="item-desc">{it.desc}</p>
+								</div>
+							{/if}
+						</div>
 					{/each}
-				</ul>
+				</div>
 			{:else}
 				<p class="fine">empty-handed — your DM holds the purse strings</p>
 			{/if}
@@ -205,6 +227,54 @@
 	.story {
 		margin: 0;
 		line-height: 1.55;
+		white-space: pre-wrap;
+	}
+	.itemlist {
+		display: grid;
+		gap: 0.35rem;
+	}
+	.item {
+		background: rgba(160, 140, 199, 0.07);
+		border: 1px solid var(--border);
+	}
+	.item.open {
+		border-color: var(--accent-2);
+	}
+	.item-head {
+		width: 100%;
+		display: flex;
+		align-items: center;
+		gap: 0.7rem;
+		background: transparent;
+		border: none;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+		padding: 0.4rem 0.7rem;
+		cursor: pointer;
+	}
+	.item.plain .item-head {
+		cursor: default;
+	}
+	.item-head b {
+		font-family: 'VT323', monospace;
+		font-size: 1.1rem;
+		letter-spacing: 0.03em;
+	}
+	.item-head small {
+		color: var(--muted);
+	}
+	.arrow {
+		margin-left: auto;
+		color: var(--muted);
+	}
+	.item-body {
+		padding: 0 0.7rem 0.7rem;
+	}
+	.item-desc {
+		margin: 0.3rem 0 0;
+		font-size: 0.9rem;
+		line-height: 1.5;
 		white-space: pre-wrap;
 	}
 	.whisper {

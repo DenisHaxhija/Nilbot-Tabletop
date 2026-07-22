@@ -52,7 +52,15 @@ export function load({ params, locals }) {
 				.all(uid, `%,${info.name}%`) as { name: string; level: number }[])
 		: [];
 
+	// Item suggestions for the give box — the world's item catalog.
+	const itemOptions = db
+		.prepare(
+			`SELECT name, rarity FROM items WHERE (user_id IS NULL OR user_id = ?) ORDER BY name`
+		)
+		.all(uid) as { name: string; rarity: string | null }[];
+
 	return {
+		itemOptions,
 		pc: {
 			id: p.id,
 			name: p.name,

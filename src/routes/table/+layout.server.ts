@@ -1,6 +1,22 @@
 import { db, getSetting } from '$lib/server/db';
 import { seatOf, parseItems } from '$lib/server/seat';
 
+// A granted item that matches the world's catalog arrives with its lore.
+function resolveItems(names: string[], dmId: number) {
+	const lookup = db.prepare(
+		`SELECT name, type, rarity, attunement, desc FROM items
+		 WHERE name = ? COLLATE NOCASE AND (user_id IS NULL OR user_id = ?) LIMIT 1`
+	);
+	return names.map((n) => {
+		const hit = lookup.get(n, dmId) as
+			| { name: string; type: string | null; rarity: string | null; attunement: string | null; desc: string }
+			| undefined;
+		return hit
+			? { name: n, type: hit.type, rarity: hit.rarity, attunement: hit.attunement, desc: hit.desc }
+			: { name: n, type: null, rarity: null, attunement: null, desc: '' };
+	});
+}
+
 // The player's whole seat shell loads here once: their sheet feeds the
 // sidebar and every page under /table.
 export function load({ locals }) {
@@ -53,7 +69,7 @@ export function load({ locals }) {
 						wis: mine.wis,
 						cha: mine.cha
 					},
-					items: parseItems(mine.items),
+					items: resolveItems(parseItems(mine.items), seat.dmId),
 					spells: parseItems(mine.spells),
 					backstory: mine.backstory
 				}

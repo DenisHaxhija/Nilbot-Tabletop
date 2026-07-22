@@ -209,9 +209,24 @@
 				itemDraft = '';
 			}}
 		>
-			<input class="grow" bind:value={itemDraft} placeholder="e.g. Potion of Healing" />
+			<input
+				class="grow"
+				bind:value={itemDraft}
+				list="item-options"
+				placeholder={data.itemOptions.length
+					? 'e.g. Potion of Healing — suggestions from the catalog'
+					: 'e.g. Potion of Healing'}
+			/>
+			<datalist id="item-options">
+				{#each data.itemOptions as it (it.name)}
+					<option value={it.name}>{it.rarity ?? ''}</option>
+				{/each}
+			</datalist>
 			<button type="submit">＋ Give</button>
 		</form>
+		<p class="whisper">
+			Items from the catalog arrive on the player's sheet with their full description.
+		</p>
 	</section>
 
 	<section class="panel">
