@@ -415,9 +415,45 @@ ipcMain.handle('tables:open', async (_e, id) => {
 		httpOnly: true,
 		sameSite: 'lax'
 	});
-	win.loadURL(`http://${t.address}/table`);
+	const target = `http://${t.address}/table`;
+	// If a world is running in this app (the DM's own), open the seat in a
+	// second window — DM view and player view side by side.
+	if (server) {
+		openSeatWindow(target);
+		return { ok: true, second: true };
+	}
+	win.loadURL(target);
 	return { ok: true };
 });
+
+let seatWin = null;
+function openSeatWindow(target) {
+	if (seatWin && !seatWin.isDestroyed()) {
+		seatWin.loadURL(target);
+		seatWin.focus();
+		return;
+	}
+	seatWin = new BrowserWindow({
+		width: 1100,
+		height: 780,
+		autoHideMenuBar: true,
+		backgroundColor: '#12142a',
+		icon: path.join(__dirname, 'icon.png'),
+		webPreferences: { contextIsolation: true }
+	});
+	// The seat's MENU closes the window (the main window has the title).
+	seatWin.webContents.on('will-navigate', (e, url) => {
+		if (url.includes('/__title')) {
+			e.preventDefault();
+			seatWin.close();
+		}
+	});
+	seatWin.webContents.on('did-fail-load', (_e, code) => {
+		if (code !== -3) seatWin?.close();
+	});
+	seatWin.on('closed', () => (seatWin = null));
+	seatWin.loadURL(target);
+}
 
 ipcMain.handle('tables:forget', (_e, id) => {
 	const reg = loadRegistry();
@@ -460,6 +496,15 @@ ipcMain.handle('campaigns:open', async (_e, id) => {
 	const meta = reg.campaigns.find((c) => c.id === id);
 	if (!meta) return { error: 'Campaign not found.' };
 	try {
+		// Re-entering the world that's already running: don't restart the
+		// server — connected players keep their seats.
+		if (server && currentPort && meta.port === currentPort) {
+			await authenticate(currentPort, meta);
+			meta.lastPlayed = new Date().toISOString();
+			saveRegistry(reg);
+			win.loadURL(`http://127.0.0.1:${currentPort}/`);
+			return { ok: true };
+		}
 		stopServer();
 		// A campaign keeps its port across restarts so players' saved table
 		// addresses stay valid; fall back to a fresh one only if it's taken.
