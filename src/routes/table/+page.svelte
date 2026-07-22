@@ -67,6 +67,8 @@
 	</main>
 	<footer>more of the table arrives as the bridge grows</footer>
 </div>
+<!-- Back to the game's title screen (the shell intercepts /__title). -->
+<a class="to-menu" href="/__title" data-sveltekit-reload>◀ MENU</a>
 
 <style>
 	.seat {
@@ -172,5 +174,23 @@
 		font-style: italic;
 		font-size: 0.82rem;
 		padding: 1rem;
+	}
+	.to-menu {
+		position: fixed;
+		bottom: 14px;
+		right: 14px;
+		z-index: 999;
+		background: rgba(18, 20, 42, 0.92);
+		color: var(--accent);
+		border: 2px solid #38305a;
+		padding: 5px 12px;
+		font-family: 'VT323', monospace;
+		font-size: 0.95rem;
+		letter-spacing: 0.08em;
+		text-decoration: none;
+	}
+	.to-menu:hover {
+		color: #ffe98a;
+		border-color: var(--accent);
 	}
 </style>
