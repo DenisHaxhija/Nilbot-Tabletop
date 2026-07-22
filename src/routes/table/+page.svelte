@@ -5,18 +5,32 @@
 
 	let { data } = $props();
 	let cast = $state(data.cast);
+	let battle = $state(data.battle);
 
-	// The canvas block stays live — the same stream the full page uses.
+	// The canvas and battle blocks stay live — the same streams the full
+	// pages use.
 	onMount(() => {
-		const source = new EventSource('/api/table/canvas/stream');
-		source.onmessage = (e) => {
+		const canvasSource = new EventSource('/api/table/canvas/stream');
+		canvasSource.onmessage = (e) => {
 			try {
 				cast = JSON.parse(e.data);
 			} catch {
 				// malformed frame — ignore
 			}
 		};
-		return () => source.close();
+		const battleSource = new EventSource('/api/table/battle/stream');
+		battleSource.onmessage = (e) => {
+			try {
+				const next = JSON.parse(e.data);
+				battle = next?.none ? null : next;
+			} catch {
+				// malformed frame — ignore
+			}
+		};
+		return () => {
+			canvasSource.close();
+			battleSource.close();
+		};
 	});
 
 	const STATS: { key: 'str' | 'dex' | 'con' | 'intel' | 'wis' | 'cha'; label: string }[] = [
@@ -66,6 +80,28 @@
 					</figure>
 				{/each}
 			</div>
+		{/if}
+	</a>
+
+	<a class="block battle" href="/table/battle">
+		<div class="block-head">
+			<h2>⚔ The Battle</h2>
+			<span class="go">{battle ? 'to arms ▸' : 'view ▸'}</span>
+		</div>
+		{#if battle}
+			<div class="warfield" in:fade>
+				<img class="war-map" src="/api/table/map/{battle.map.mapId}" alt={battle.title} />
+				<div class="war-meta">
+					<p class="war-title">{battle.title}</p>
+					<p class="fine">
+						{battle.map.tokens.filter((t: any) => t.kind === 'monster' && !t.dead).length} foes
+						afield{#if battle.map.encounter && (battle.map.encounter.round > 1 || battle.map.encounter.activeId)}
+							· round {battle.map.encounter.round}{/if}
+					</p>
+				</div>
+			</div>
+		{:else}
+			<p class="fine">no battle rages — steel sleeps, for now</p>
 		{/if}
 	</a>
 
@@ -139,12 +175,19 @@
 		margin: 0.1rem 0 0;
 		color: var(--muted);
 	}
+	/* Two even columns: the live surfaces (canvas, battle) span the full
+	   row; sheet and party sit side by side beneath them. */
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+		grid-template-columns: 1fr 1fr;
 		gap: 1rem;
-		align-content: start;
-		max-width: 980px;
+		align-items: stretch;
+		max-width: 1020px;
+	}
+	@media (max-width: 760px) {
+		.grid {
+			grid-template-columns: 1fr;
+		}
 	}
 	.block {
 		display: block;
@@ -160,8 +203,35 @@
 	a.block:hover {
 		border-color: var(--accent);
 	}
-	.block.canvas {
+	.block.canvas,
+	.block.battle {
 		grid-column: 1 / -1;
+	}
+	.warfield {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		min-width: 0;
+	}
+	.war-map {
+		height: 120px;
+		width: 190px;
+		object-fit: cover;
+		border: 2px solid #38305a;
+		background: #0b0c1e;
+		flex: 0 0 auto;
+	}
+	.war-meta {
+		min-width: 0;
+	}
+	.war-title {
+		margin: 0 0 0.25rem;
+		font-family: 'VT323', monospace;
+		font-size: 1.4rem;
+		letter-spacing: 0.04em;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.block-head {
 		display: flex;

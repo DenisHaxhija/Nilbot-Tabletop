@@ -1,6 +1,7 @@
 import { db } from '$lib/server/db';
 import { seatOf } from '$lib/server/seat';
 import { canvasCast } from '$lib/server/canvas';
+import { publishedBattle } from '$lib/server/battle';
 
 // The seat's overview dashboard: a live glimpse of the canvas, the sheet
 // at a glance, and the next gathering.
@@ -20,6 +21,7 @@ export function load({ locals }) {
 
 	return {
 		cast: canvasCast(seat.dmId, '/api/table/chars'),
+		battle: publishedBattle(seat.dmId),
 		nextSession: nextSession ?? null,
 		partyCount
 	};
