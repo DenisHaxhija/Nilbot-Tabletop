@@ -112,6 +112,10 @@
 				{#each CLASSES as c (c.name)}
 					<option value={c.name}>{c.name}</option>
 				{/each}
+				{#if klass && !CLASSES.some((c) => c.name === klass)}
+					<!-- Homebrew classes stay selectable instead of reading as classless. -->
+					<option value={klass}>{klass}</option>
+				{/if}
 			</select>
 			<div class="lvl">
 				<button disabled={data.pc.level <= 1} onclick={() => patch({ level: data.pc.level - 1 })}
@@ -421,7 +425,7 @@
 		color: var(--muted);
 	}
 	.stat input {
-		width: 3.4rem;
+		width: 4.4rem;
 		text-align: center;
 		font-family: var(--pixel);
 		font-size: 1.3rem;

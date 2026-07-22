@@ -39,15 +39,17 @@ export function load({ params, locals }) {
 	if (!p) error(404, 'This adventurer is not in your party.');
 
 	// Spell suggestions for the grant box — the compendium narrowed to the
-	// character's class (all levels; the DM decides what they get).
+	// character's class (all levels; the DM decides what they get). Grouped
+	// by name: sources overlap, and datalists (and keyed lists) need
+	// unique entries.
 	const info = classInfo(p.class);
 	const spellOptions = info
 		? (db
 				.prepare(
-					`SELECT name, level FROM spells
+					`SELECT name, MIN(level) AS level FROM spells
 					 WHERE (user_id IS NULL OR user_id = ?)
 					   AND ',' || REPLACE(classes, ' ', '') || ',' LIKE ?
-					 ORDER BY level, name`
+					 GROUP BY name ORDER BY level, name`
 				)
 				.all(uid, `%,${info.name}%`) as { name: string; level: number }[])
 		: [];
@@ -55,7 +57,8 @@ export function load({ params, locals }) {
 	// Item suggestions for the give box — the world's item catalog.
 	const itemOptions = db
 		.prepare(
-			`SELECT name, rarity FROM items WHERE (user_id IS NULL OR user_id = ?) ORDER BY name`
+			`SELECT name, MIN(rarity) AS rarity FROM items
+			 WHERE (user_id IS NULL OR user_id = ?) GROUP BY name ORDER BY name`
 		)
 		.all(uid) as { name: string; rarity: string | null }[];
 
