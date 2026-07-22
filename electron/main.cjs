@@ -113,7 +113,8 @@ function showMain(port) {
 		shell.openExternal(url);
 		return { action: 'deny' };
 	});
-	win.loadURL(`http://127.0.0.1:${port}`);
+	// The game opens on the title screen (falls through to /login on first run).
+	win.loadURL(`http://127.0.0.1:${port}/title?app=1`);
 	win.once('ready-to-show', () => {
 		splash?.destroy();
 		splash = null;

@@ -51,6 +51,7 @@
 
 	const bare = $derived(
 		page.url.pathname.startsWith('/login') ||
+			page.url.pathname.startsWith('/title') ||
 			/^\/present\/((char|map)\/)?\d/.test(page.url.pathname) ||
 			page.url.pathname === '/present/canvas' ||
 			page.url.pathname === '/present/shop'
