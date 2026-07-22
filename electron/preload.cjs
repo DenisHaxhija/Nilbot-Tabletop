@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('tabletop', {
 	discoverTables: () => ipcRenderer.invoke('tables:discover'),
 	joinTable: (address, code) => ipcRenderer.invoke('tables:join', address, code),
 	listTables: () => ipcRenderer.invoke('tables:list'),
-	openTable: (id) => ipcRenderer.invoke('tables:open', id),
+	openTable: (id, opts) => ipcRenderer.invoke('tables:open', id, opts),
 	forgetTable: (id) => ipcRenderer.invoke('tables:forget', id),
 	settingsInfo: () => ipcRenderer.invoke('settings:info'),
 	toggleFullscreen: () => ipcRenderer.invoke('settings:fullscreen'),

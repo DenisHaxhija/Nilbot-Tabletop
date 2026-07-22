@@ -104,6 +104,22 @@
 				text-align: right;
 				line-height: 1.25;
 			}
+			.slot .win2 {
+				background: transparent;
+				border: none;
+				color: #565b76;
+				font-family: inherit;
+				font-size: 1.05rem;
+				cursor: pointer;
+				padding: 0.1rem 0.2rem;
+				opacity: 0;
+			}
+			.slot:hover .win2 {
+				opacity: 1;
+			}
+			.slot .win2:hover {
+				color: #ffe98a;
+			}
 			.slot .rm {
 				background: transparent;
 				border: none;
@@ -229,14 +245,19 @@
 					const s = document.createElement('div');
 					s.className = 'slot panelbox';
 					s.innerHTML =
-						'<span class="name"></span><span class="meta"></span><button class="rm" title="Forget this table">✕</button>';
+						'<span class="name"></span><span class="meta"></span><button class="win2" title="Open in a second window (DM testing)">⧉</button><button class="rm" title="Forget this table">✕</button>';
 					s.querySelector('.name').textContent = `${t.dmName}'s table`;
 					s.querySelector('.meta').textContent =
 						`as ${t.playerName} · ` + (t.open ? 'open now ●' : 'closed');
 					s.addEventListener('click', async (e) => {
-						if (e.target.closest('.rm')) return;
+						if (e.target.closest('.rm') || e.target.closest('.win2')) return;
 						err.textContent = '';
 						const res = await window.tabletop.openTable(t.id);
+						if (res && res.error) err.textContent = res.error;
+					});
+					s.querySelector('.win2').addEventListener('click', async () => {
+						err.textContent = '';
+						const res = await window.tabletop.openTable(t.id, { second: true });
 						if (res && res.error) err.textContent = res.error;
 					});
 					s.querySelector('.rm').addEventListener('click', async () => {

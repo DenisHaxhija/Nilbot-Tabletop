@@ -436,7 +436,7 @@ function reachable(host, port) {
 	});
 }
 
-ipcOpenTable = async (id) => {
+ipcOpenTable = async (id, opts) => {
 	const reg = loadRegistry();
 	const t = (reg.joined ?? []).find((x) => x.id === id);
 	if (!t) return { error: 'Table not found.' };
@@ -452,16 +452,16 @@ ipcOpenTable = async (id) => {
 		sameSite: 'lax'
 	});
 	const target = `http://${t.address}/table`;
-	// If a world is running in this app (the DM's own), open the seat in a
-	// second window — DM view and player view side by side.
-	if (server) {
+	// Like any game: the invite/seat takes over the window. A second window
+	// is an explicit request (the DM testing both roles side by side).
+	if (opts && opts.second) {
 		openSeatWindow(target);
 		return { ok: true, second: true };
 	}
 	win.loadURL(target);
 	return { ok: true };
 };
-ipcMain.handle('tables:open', (_e, id) => ipcOpenTable(id));
+ipcMain.handle('tables:open', (_e, id, opts) => ipcOpenTable(id, opts));
 
 let seatWin = null;
 function openSeatWindow(target) {
