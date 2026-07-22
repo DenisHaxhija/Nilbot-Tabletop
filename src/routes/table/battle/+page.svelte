@@ -56,7 +56,16 @@
 	function panEnd() {
 		panning = null;
 	}
+
+	// Dim the lights: the room goes dark and the battlefield floats alone.
+	let dimmed = $state(false);
 </script>
+
+<svelte:window
+	onkeydown={(e) => {
+		if (e.key === 'Escape') dimmed = false;
+	}}
+/>
 
 <svelte:head><title>The Battle · NilBot Tabletop</title></svelte:head>
 
@@ -70,7 +79,15 @@
 {#if !battle}
 	<p class="fine" in:fade>No battle rages — steel sleeps, for now.</p>
 {:else}
-	<div class="stage">
+	{#if dimmed}
+		<button
+			class="lights-off"
+			transition:fade={{ duration: 250 }}
+			aria-label="Raise the lights"
+			onclick={() => (dimmed = false)}
+		></button>
+	{/if}
+	<div class="stage" class:cinema={dimmed}>
 		<div class="backdrop" style="background-image: url('/api/table/map/{battle.map.mapId}')"></div>
 		<div
 			class="viewport"
@@ -132,6 +149,9 @@
 		{/if}
 
 		<div class="controls">
+			<button onclick={() => (dimmed = !dimmed)} title={dimmed ? 'Raise the lights' : 'Dim the lights'}
+				>{dimmed ? '💡' : '🕯'}</button
+			>
 			<button onclick={() => zoom(1 / 1.2)} title="Zoom out">−</button>
 			<button onclick={resetView} title="Fit">⤢</button>
 			<button onclick={() => zoom(1.2)} title="Zoom in">＋</button>
@@ -167,6 +187,28 @@
 		overflow: hidden;
 		border: 1px solid var(--border);
 		background: #07080a;
+	}
+	/* Lights out: the room goes dark, the battlefield floats center-stage. */
+	.lights-off {
+		position: fixed;
+		inset: 0;
+		z-index: 40;
+		background: rgba(3, 3, 8, 0.96);
+		border: none;
+		padding: 0;
+		cursor: pointer;
+	}
+	.stage.cinema {
+		position: fixed;
+		inset: 2.2rem clamp(1.5rem, 6vw, 5rem);
+		height: auto;
+		min-height: 0;
+		z-index: 50;
+		border-color: #38305a;
+		box-shadow: 0 0 90px rgba(0, 0, 0, 0.95);
+	}
+	.stage.cinema .map {
+		max-height: calc(100vh - 4.4rem - 4px);
 	}
 	.backdrop {
 		position: absolute;

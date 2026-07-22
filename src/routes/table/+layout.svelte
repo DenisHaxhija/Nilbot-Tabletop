@@ -191,6 +191,7 @@
 		flex: 1;
 		padding: 1.6rem 2rem;
 		max-width: 1080px;
+		margin: 0 auto;
 		box-sizing: border-box;
 		min-width: 0;
 	}
