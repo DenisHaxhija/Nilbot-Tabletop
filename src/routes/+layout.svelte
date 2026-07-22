@@ -108,6 +108,14 @@
 			</nav>
 			<div class="sidebar-foot">
 				<a
+					href="/portal"
+					title="The Portal"
+					class="settings-link"
+					class:active={page.url.pathname.startsWith('/portal')}
+				>
+					<span class="icon">🌀</span>{#if !collapsed}<span class="label">The Portal</span>{/if}
+				</a>
+				<a
 					href="/journal"
 					title="Journal"
 					class="settings-link"

@@ -422,6 +422,19 @@ try {
 	// column already present
 }
 
+// Tabletop Portal: session scheduling for the table.
+db.exec(`
+CREATE TABLE IF NOT EXISTS schedule_events (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  title TEXT NOT NULL DEFAULT 'Session',
+  at TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_schedule_user_at ON schedule_events(user_id, at);
+`);
+
 // Settings are per-user; rebuild the table if it predates that.
 const settingsCols = db.prepare(`PRAGMA table_info(settings)`).all() as { name: string }[];
 if (settingsCols.length > 0 && !settingsCols.some((c) => c.name === 'user_id')) {
