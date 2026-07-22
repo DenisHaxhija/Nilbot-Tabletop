@@ -13,13 +13,8 @@
 
 <div class="wrap">
 	<h1>Settings</h1>
-
-	<div class="account-row">
-		<span>Logged in as <b>{data.username}</b></span>
-		<form method="POST" action="?/logout">
-			<button type="submit" class="logout">Log out</button>
-		</form>
-	</div>
+	<!-- Tabletop: no account UI — identity is the shell's job. Campaign
+	     worlds are opened from the title screen, not logged into. -->
 
 	<section class="panel">
 		<h2>General</h2>
@@ -61,30 +56,6 @@
 		</small>
 	</section>
 
-	<section class="panel">
-		<h2>Password</h2>
-		<form method="POST" action="?/password">
-			<div class="row">
-				<label>
-					Current password
-					<input name="current" type="password" required autocomplete="current-password" />
-				</label>
-			</div>
-			<div class="row">
-				<label>
-					New password
-					<input name="next" type="password" required minlength="6" autocomplete="new-password" />
-				</label>
-				<label>
-					Confirm new password
-					<input name="confirm" type="password" required autocomplete="new-password" />
-				</label>
-			</div>
-			{#if form?.password}<p class="err">{form.password}</p>{/if}
-			<button type="submit">Change password</button>
-			<small>You'll be asked to log in again afterwards.</small>
-		</form>
-	</section>
 </div>
 
 <style>
