@@ -58,14 +58,14 @@
 			page.url.pathname === '/present/shop'
 	);
 
-	// Room dialects: the route drives the accent palette (see CSS below).
-	const room = $derived(
-		page.url.pathname.startsWith('/shop')
-			? 'shop'
-			: page.url.pathname.startsWith('/spells')
-				? 'spells'
-				: ''
-	);
+	// Section dialects: each sidebar section colors its whole wing.
+	const room = $derived.by(() => {
+		const p = page.url.pathname;
+		if (/^\/(battles|present|maps)/.test(p)) return 'combat';
+		if (/^\/(bestiary|spells|builder)/.test(p)) return 'library';
+		if (/^\/(characters|worldmaps|shop|music|names)/.test(p)) return 'world';
+		return '';
+	});
 </script>
 
 <svelte:head>
@@ -154,14 +154,18 @@
 		--pixel: 'VT323', monospace;
 		color-scheme: dark;
 	}
-	/* Room dialects: same language, different accent. */
-	:global(.shell[data-room='shop']) {
-		--accent: #ffd37a;
-		--accent-2: #8a6a30;
+	/* Section dialects: same language, different accent per wing. */
+	:global(.shell[data-room='combat']) {
+		--accent: #ff9a3c;
+		--accent-2: #8a4a26;
 	}
-	:global(.shell[data-room='spells']) {
+	:global(.shell[data-room='library']) {
 		--accent: #b48aff;
 		--accent-2: #5f3f9e;
+	}
+	:global(.shell[data-room='world']) {
+		--accent: #ffd37a;
+		--accent-2: #8a6a30;
 	}
 	:global(html) {
 		background: #12142a;

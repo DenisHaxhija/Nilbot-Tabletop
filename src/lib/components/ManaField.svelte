@@ -2,25 +2,36 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 
-	// Living pixel backdrop behind the whole DM side. Per-room moods: the
-	// sanctum's cyan motes rise, the Emporium's gold flecks settle like
-	// coins, the Grimoire charges violet and rises fast.
+	// Living pixel backdrop behind the whole DM side, one mood per sidebar
+	// section: the sanctum's cyan motes rise among stars; Combat swaps the
+	// stars for fire embers; the Library is the Grimoire's violet charge;
+	// the World trades in Emporium gold, settling like coins.
 	const MOODS: Record<
 		string,
-		{ top: string; mid: string; low: string; a: number[]; b: number[]; dir: number; speed: number }
+		{
+			top: string;
+			mid: string;
+			low: string;
+			a: number[];
+			b: number[];
+			dir: number;
+			speed: number;
+			stars: boolean;
+		}
 	> = {
-		'': { top: '#101228', mid: '#12142a', low: '#1a1636', a: [126, 224, 232], b: [180, 138, 255], dir: -1, speed: 1 },
-		shop: { top: '#141126', mid: '#171228', low: '#2a1e30', a: [255, 211, 122], b: [232, 167, 92], dir: 1, speed: 0.6 },
-		spells: { top: '#120f2c', mid: '#151232', low: '#241646', a: [180, 138, 255], b: [226, 160, 255], dir: -1, speed: 1.6 }
+		'': { top: '#101228', mid: '#12142a', low: '#1a1636', a: [126, 224, 232], b: [180, 138, 255], dir: -1, speed: 1, stars: true },
+		combat: { top: '#190f16', mid: '#1c1014', low: '#2e1410', a: [255, 154, 60], b: [232, 100, 44], dir: -1, speed: 1.3, stars: false },
+		library: { top: '#120f2c', mid: '#151232', low: '#241646', a: [180, 138, 255], b: [226, 160, 255], dir: -1, speed: 1.6, stars: true },
+		world: { top: '#141126', mid: '#171228', low: '#2a1e30', a: [255, 211, 122], b: [232, 167, 92], dir: 1, speed: 0.6, stars: true }
 	};
 
-	const route = $derived(
-		page.url.pathname.startsWith('/shop')
-			? 'shop'
-			: page.url.pathname.startsWith('/spells')
-				? 'spells'
-				: ''
-	);
+	function sectionOf(p: string): string {
+		if (/^\/(battles|present|maps)/.test(p)) return 'combat';
+		if (/^\/(bestiary|spells|builder)/.test(p)) return 'library';
+		if (/^\/(characters|worldmaps|shop|music|names)/.test(p)) return 'world';
+		return '';
+	}
+	const route = $derived(sectionOf(page.url.pathname));
 	let mood = MOODS[''];
 	$effect(() => {
 		mood = MOODS[route] ?? MOODS[''];
@@ -58,10 +69,12 @@
 			ctx.fillStyle = g;
 			ctx.fillRect(0, 0, W, H);
 
-			for (const s of stars) {
-				if (s.blink && (tick + s.phase) % 9 < 3) continue;
-				ctx.fillStyle = 'rgba(150, 160, 210, 0.35)';
-				ctx.fillRect(s.x, s.y, 1, 1);
+			if (mood.stars) {
+				for (const s of stars) {
+					if (s.blink && (tick + s.phase) % 9 < 3) continue;
+					ctx.fillStyle = 'rgba(150, 160, 210, 0.35)';
+					ctx.fillRect(s.x, s.y, 1, 1);
+				}
 			}
 			for (const m of motes) {
 				m.y += mood.dir * m.v * mood.speed;
