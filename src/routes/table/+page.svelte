@@ -1,138 +1,157 @@
 <script lang="ts">
-	import '@fontsource/vt323/index.css';
-	import ManaField from '$lib/components/ManaField.svelte';
+	import { mod } from '$lib/classnotes';
 	let { data } = $props();
 
-	function when(at: string) {
-		const d = new Date(at);
-		return (
-			d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) +
-			' · ' +
-			d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-		);
-	}
+	const STATS: { key: 'str' | 'dex' | 'con' | 'intel' | 'wis' | 'cha'; label: string }[] = [
+		{ key: 'str', label: 'STR' },
+		{ key: 'dex', label: 'DEX' },
+		{ key: 'con', label: 'CON' },
+		{ key: 'intel', label: 'INT' },
+		{ key: 'wis', label: 'WIS' },
+		{ key: 'cha', label: 'CHA' }
+	];
 </script>
 
-<svelte:head><title>The Table · NilBot Tabletop</title></svelte:head>
+<svelte:head><title>My Sheet · NilBot Tabletop</title></svelte:head>
 
-<ManaField />
-<div class="seat">
-	<header>
-		<span class="brand">🐈‍⬛ THE TABLE</span>
-		<span class="who">{data.playerName} · at {data.dmName}'s table</span>
+{#if data.me}
+	<header class="top">
+		<h1>{data.me.name}</h1>
+		<p class="sub">
+			{#if data.me.class}{data.me.class} ·{/if} level {data.me.level}
+		</p>
 	</header>
 
-	<main>
-		{#if data.me}
-			<section class="panel me">
-				<h2>{data.me.name}</h2>
-				{#if data.me.class}<p class="klass">{data.me.class}</p>{/if}
-				<p class="purse">🪙 {data.me.gold} gold</p>
-				{#if data.me.conditions.length}
-					<div class="chips">
-						{#each data.me.conditions as c (c)}
-							<span class="chip">{c}</span>
-						{/each}
-					</div>
-				{:else}
-					<p class="fine">unafflicted — for now</p>
-				{/if}
-			</section>
-		{:else}
-			<section class="panel me">
-				<h2>{data.playerName}</h2>
-				<p class="fine">Your DM hasn't bound a character to your key yet.</p>
-			</section>
-		{/if}
+	<div class="statrow">
+		{#each STATS as s (s.key)}
+			<div class="stat">
+				<span class="s-lbl">{s.label}</span>
+				<span class="s-val">{data.me.stats[s.key]}</span>
+				<span class="s-mod">{mod(data.me.stats[s.key])}</span>
+			</div>
+		{/each}
+	</div>
 
+	<div class="grid">
 		<section class="panel">
-			<h2>The Party</h2>
-			<ul class="party">
-				{#each data.party as p (p.id)}
-					<li><b>{p.name}</b>{#if p.class}<small> · {p.class}</small>{/if}</li>
-				{/each}
-			</ul>
+			<h2>Coin</h2>
+			<p class="purse">🪙 {data.me.gold} gold</p>
 		</section>
 
 		<section class="panel">
-			<h2>Next Game Night</h2>
-			{#if data.nextSession}
-				<p class="ev"><b>{data.nextSession.title}</b></p>
-				<p class="ev-when">{when(data.nextSession.at)}</p>
-				{#if data.nextSession.note}<p class="fine">{data.nextSession.note}</p>{/if}
+			<h2>Conditions</h2>
+			{#if data.me.conditions.length}
+				<div class="chips">
+					{#each data.me.conditions as c (c)}
+						<span class="chip">{c}</span>
+					{/each}
+				</div>
 			{:else}
-				<p class="fine">Nothing scheduled — pester your DM.</p>
+				<p class="fine">unafflicted — for now</p>
 			{/if}
 		</section>
-	</main>
-	<footer>more of the table arrives as the bridge grows</footer>
-</div>
-<!-- Back to the game's title screen (the shell intercepts /__title). -->
-<a class="to-menu" href="/__title" data-sveltekit-reload>◀ MENU</a>
+
+		<section class="panel wide">
+			<h2>Items</h2>
+			{#if data.me.items.length}
+				<ul class="items">
+					{#each data.me.items as it, i (i)}
+						<li>{it}</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="fine">empty-handed — your DM holds the purse strings</p>
+			{/if}
+		</section>
+	</div>
+	<p class="whisper">Your DM shapes this sheet from their Portal — what you see is live.</p>
+{:else}
+	<header class="top">
+		<h1>{data.playerName}</h1>
+		<p class="sub">no character yet</p>
+	</header>
+	<p class="fine">Your DM hasn't bound a character to your key yet — pester them.</p>
+{/if}
 
 <style>
-	.seat {
-		--accent: #a08cc7;
-		--accent-2: #5e4f85;
-		min-height: 100vh;
-		display: flex;
-		flex-direction: column;
-		font-family: system-ui, sans-serif;
+	.top {
+		margin-bottom: 1.2rem;
 	}
-	header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 0.8rem 1.4rem;
-		border-bottom: 1px solid #38305a;
-	}
-	.brand {
+	h1 {
+		margin: 0;
 		font-family: 'VT323', monospace;
-		font-size: 1.35rem;
-		letter-spacing: 0.12em;
+		font-size: 2.4rem;
+		letter-spacing: 0.05em;
 		color: var(--accent);
 		text-shadow: 2px 2px 0 #0b0c1e;
 	}
-	.who {
+	.sub {
+		margin: 0.1rem 0 0;
 		color: var(--muted);
-		font-size: 0.9rem;
 	}
-	main {
-		flex: 1;
+	.statrow {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+		gap: 0.6rem;
+		max-width: 640px;
+		margin-bottom: 1.2rem;
+	}
+	.stat {
+		display: grid;
+		justify-items: center;
+		gap: 0.05rem;
+		padding: 0.55rem 0.4rem;
+		background: var(--panel);
+		border: 1px solid var(--border);
+		border-top: 3px solid var(--accent-2);
+	}
+	.s-lbl {
+		font-family: 'VT323', monospace;
+		font-size: 0.9rem;
+		letter-spacing: 0.12em;
+		color: var(--muted);
+	}
+	.s-val {
+		font-family: 'VT323', monospace;
+		font-size: 1.9rem;
+		line-height: 1;
+		color: var(--accent);
+		text-shadow: 2px 2px 0 #0b0c1e;
+	}
+	.s-mod {
+		font-size: 0.85rem;
+		color: var(--muted);
+	}
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 		gap: 1rem;
 		align-content: start;
-		padding: 1.6rem;
-		max-width: 1080px;
-		margin: 0 auto;
-		width: 100%;
-		box-sizing: border-box;
+		max-width: 860px;
 	}
 	.panel {
 		background: var(--panel);
 		border: 1px solid var(--border);
 		border-top: 3px solid var(--accent-2);
-		padding: 1.1rem 1.3rem;
+		padding: 1rem 1.2rem;
+	}
+	.panel.wide {
+		grid-column: 1 / -1;
 	}
 	h2 {
 		margin: 0 0 0.5rem;
 		font-family: 'VT323', monospace;
-		font-size: 1.5rem;
+		font-size: 1.4rem;
 		letter-spacing: 0.05em;
 		color: var(--accent);
 		text-shadow: 2px 2px 0 #0b0c1e;
 	}
-	.klass {
-		color: var(--muted);
-		margin: 0 0 0.5rem;
-	}
 	.purse {
 		font-family: 'VT323', monospace;
-		font-size: 1.6rem;
+		font-size: 1.7rem;
 		color: #ffd37a;
 		text-shadow: 2px 2px 0 #131022;
-		margin: 0 0 0.5rem;
+		margin: 0;
 	}
 	.chips {
 		display: flex;
@@ -146,51 +165,29 @@
 		border: 1px solid #6e3a4a;
 		color: #ff8a9a;
 	}
+	.items {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+		gap: 0.35rem;
+	}
+	.items li {
+		padding: 0.3rem 0.6rem;
+		background: rgba(160, 140, 199, 0.07);
+		border: 1px solid var(--border);
+		font-size: 0.9rem;
+	}
 	.fine {
 		color: var(--muted);
 		font-style: italic;
 		margin: 0;
 	}
-	.party {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: grid;
-		gap: 0.3rem;
-	}
-	.party small {
-		color: var(--muted);
-	}
-	.ev {
-		margin: 0 0 0.2rem;
-	}
-	.ev-when {
-		color: var(--accent);
-		margin: 0 0 0.3rem;
-	}
-	footer {
-		text-align: center;
+	.whisper {
 		color: var(--muted);
 		font-style: italic;
 		font-size: 0.82rem;
-		padding: 1rem;
-	}
-	.to-menu {
-		position: fixed;
-		bottom: 14px;
-		right: 14px;
-		z-index: 999;
-		background: rgba(18, 20, 42, 0.92);
-		color: var(--accent);
-		border: 2px solid #38305a;
-		padding: 5px 12px;
-		font-family: 'VT323', monospace;
-		font-size: 0.95rem;
-		letter-spacing: 0.08em;
-		text-decoration: none;
-	}
-	.to-menu:hover {
-		color: #ffe98a;
-		border-color: var(--accent);
+		margin-top: 1.2rem;
 	}
 </style>

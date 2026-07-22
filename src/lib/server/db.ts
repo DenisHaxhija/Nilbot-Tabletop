@@ -276,17 +276,25 @@ try {
 } catch {
 	// column already present
 }
-// Tabletop Portal: the DM inflicts and bestows — gold and conditions live
-// on the player characters.
-try {
-	db.exec(`ALTER TABLE pcs ADD COLUMN gold INTEGER NOT NULL DEFAULT 0`);
-} catch {
-	// column already present
-}
-try {
-	db.exec(`ALTER TABLE pcs ADD COLUMN conditions TEXT NOT NULL DEFAULT ''`);
-} catch {
-	// column already present
+// Tabletop Portal: the DM inflicts and bestows — gold, conditions, stats,
+// level and items live on the player characters, born with the invite.
+for (const colDef of [
+	`gold INTEGER NOT NULL DEFAULT 0`,
+	`conditions TEXT NOT NULL DEFAULT ''`,
+	`level INTEGER NOT NULL DEFAULT 1`,
+	`str INTEGER NOT NULL DEFAULT 10`,
+	`dex INTEGER NOT NULL DEFAULT 10`,
+	`con INTEGER NOT NULL DEFAULT 10`,
+	`intel INTEGER NOT NULL DEFAULT 10`,
+	`wis INTEGER NOT NULL DEFAULT 10`,
+	`cha INTEGER NOT NULL DEFAULT 10`,
+	`items TEXT NOT NULL DEFAULT '[]'`
+]) {
+	try {
+		db.exec(`ALTER TABLE pcs ADD COLUMN ${colDef}`);
+	} catch {
+		// column already present
+	}
 }
 // Size of each stored user file, so deletes can decrement usage on any backend.
 for (const [table, col] of [

@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 	import { confirmDialog } from '$lib/confirm.svelte';
+	import { CLASSES } from '$lib/classnotes';
 
 	let { data } = $props();
 
@@ -102,9 +103,10 @@
 		invalidateAll();
 	}
 
-	// --- invitations ---
+	// --- invitations (the invite forges the character's sheet) ---
 	let invName = $state('');
-	let invPc = $state('');
+	let invPcName = $state('');
+	let invClass = $state('');
 	let invError = $state('');
 
 	async function addInvite(e: SubmitEvent) {
@@ -113,7 +115,7 @@
 		const res = await fetch('/api/portal/invites', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ playerName: invName, pcId: invPc || null })
+			body: JSON.stringify({ playerName: invName, pcName: invPcName, pcClass: invClass })
 		});
 		const body = await res.json();
 		if (!res.ok) {
@@ -121,7 +123,8 @@
 			return;
 		}
 		invName = '';
-		invPc = '';
+		invPcName = '';
+		invClass = '';
 		invalidateAll();
 	}
 
@@ -252,14 +255,19 @@
 		{/if}
 		<form class="inv-form" onsubmit={addInvite}>
 			<input bind:value={invName} placeholder="Player's name — e.g. Leke" required />
-			<select bind:value={invPc}>
-				<option value="">bind to character… (optional)</option>
-				{#each data.players as p (p.id)}
-					<option value={p.id}>{p.name}</option>
+			<input bind:value={invPcName} placeholder="Character's name — e.g. Charles Lazule" required />
+			<select bind:value={invClass}>
+				<option value="">class…</option>
+				{#each CLASSES as c (c.name)}
+					<option value={c.name}>{c.name}</option>
 				{/each}
 			</select>
 			<button type="submit">＋ Cut a key</button>
 		</form>
+		<p class="fine-inline forged">
+			Cutting the key forges the character's sheet — level 1, class stats, starting gold and gear —
+			ready to shape from <a href="/portal/players">Players</a>.
+		</p>
 		{#if invError}<p class="err">{invError}</p>{/if}
 		{#if data.invites.length}
 			<ul class="invites">
@@ -480,11 +488,19 @@
 	.inv-form {
 		display: flex;
 		gap: 0.5rem;
-		max-width: 420px;
-		margin-bottom: 0.8rem;
+		max-width: 640px;
+		margin-bottom: 0.3rem;
 	}
 	.inv-form input {
 		flex: 1;
+		min-width: 0;
+	}
+	.forged {
+		color: var(--muted);
+		margin: 0 0 0.8rem;
+	}
+	.forged a {
+		color: var(--accent);
 	}
 	.invites {
 		list-style: none;

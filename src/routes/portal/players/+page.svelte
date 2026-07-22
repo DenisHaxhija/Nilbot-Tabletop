@@ -10,9 +10,19 @@
 		'stunned', 'unconscious', 'exhaustion'
 	];
 
+	const STATS: { key: 'str' | 'dex' | 'con' | 'intel' | 'wis' | 'cha'; label: string }[] = [
+		{ key: 'str', label: 'STR' },
+		{ key: 'dex', label: 'DEX' },
+		{ key: 'con', label: 'CON' },
+		{ key: 'intel', label: 'INT' },
+		{ key: 'wis', label: 'WIS' },
+		{ key: 'cha', label: 'CHA' }
+	];
+
 	// One gold amount box per player, defaulting to 10.
 	let goldAmt = $state<Record<number, number>>({});
 	let condPick = $state<Record<number, string>>({});
+	let itemDraft = $state<Record<number, string>>({});
 
 	async function patch(id: number, body: Record<string, unknown>) {
 		await fetch(`/api/portal/players/${id}`, {
@@ -50,7 +60,7 @@
 				{/if}
 				<div class="who">
 					<b>{p.name}</b>
-					{#if p.class}<small>{p.class}</small>{/if}
+					{#if p.class}<small>{p.class} · level {p.level}</small>{:else}<small>level {p.level}</small>{/if}
 					{#if p.sheetSlug}
 						<a class="sheet" href="/bestiary/{encodeURIComponent(p.sheetSlug)}">📜 {p.sheetName ?? 'sheet'}</a>
 					{:else}
@@ -59,6 +69,34 @@
 				</div>
 				<span class="purse" title="Gold pieces">🪙 {p.gold}</span>
 			</header>
+
+			<div class="ctl">
+				<span class="lbl">Level</span>
+				<div class="row lvl">
+					<button disabled={p.level <= 1} onclick={() => patch(p.id, { level: p.level - 1 })}>−</button>
+					<span class="lvl-num">{p.level}</span>
+					<button disabled={p.level >= 20} onclick={() => patch(p.id, { level: p.level + 1 })}>+</button>
+				</div>
+			</div>
+
+			<div class="ctl">
+				<span class="lbl">Ability Scores</span>
+				<div class="stats">
+					{#each STATS as s (s.key)}
+						<label class="stat">
+							<span>{s.label}</span>
+							<input
+								type="number"
+								min="1"
+								max="30"
+								value={p.stats[s.key]}
+								onchange={(e) =>
+									patch(p.id, { stat: { key: s.key, value: Number(e.currentTarget.value) } })}
+							/>
+						</label>
+					{/each}
+				</div>
+			</div>
 
 			<div class="ctl">
 				<span class="lbl">Coin</span>
@@ -100,6 +138,36 @@
 						}}>Inflict</button
 					>
 				</div>
+			</div>
+
+			<div class="ctl">
+				<span class="lbl">Items</span>
+				{#if p.items.length}
+					<ul class="items">
+						{#each p.items as it, i (i)}
+							<li>
+								{it}
+								<button class="it-del" title="Take away" onclick={() => patch(p.id, { removeItem: i })}
+									>✕</button
+								>
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<small class="fine">empty-handed</small>
+				{/if}
+				<form
+					class="row"
+					onsubmit={(e) => {
+						e.preventDefault();
+						if (!itemDraft[p.id]?.trim()) return;
+						patch(p.id, { addItem: itemDraft[p.id] });
+						itemDraft[p.id] = '';
+					}}
+				>
+					<input class="it-in" bind:value={itemDraft[p.id]} placeholder="Bestow an item — e.g. Potion of Healing" />
+					<button type="submit">＋ Give</button>
+				</form>
 			</div>
 		</section>
 	{/each}
@@ -215,5 +283,70 @@
 	.fine {
 		color: var(--muted);
 		font-style: italic;
+	}
+	.lvl {
+		align-items: center;
+	}
+	.lvl button {
+		width: 2.1rem;
+	}
+	.lvl-num {
+		font-family: var(--pixel);
+		font-size: 1.5rem;
+		min-width: 2.2rem;
+		text-align: center;
+		color: var(--accent);
+		text-shadow: 2px 2px 0 #131022;
+	}
+	.stats {
+		display: grid;
+		grid-template-columns: repeat(6, 1fr);
+		gap: 0.4rem;
+	}
+	.stat {
+		display: grid;
+		gap: 0.15rem;
+		text-align: center;
+	}
+	.stat span {
+		font-family: var(--pixel);
+		font-size: 0.85rem;
+		letter-spacing: 0.08em;
+		color: var(--muted);
+	}
+	.stat input {
+		width: 100%;
+		text-align: center;
+		box-sizing: border-box;
+	}
+	.items {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: 0.25rem;
+	}
+	.items li {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.9rem;
+		padding: 0.2rem 0.5rem;
+		background: rgba(160, 140, 199, 0.07);
+		border: 1px solid var(--border);
+	}
+	.it-del {
+		margin-left: auto;
+		background: transparent;
+		border: none;
+		color: var(--muted);
+		cursor: pointer;
+		padding: 0 0.2rem;
+	}
+	.it-del:hover {
+		color: #ff8a9a;
+	}
+	.it-in {
+		flex: 1;
 	}
 </style>

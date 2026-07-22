@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import crypto from 'node:crypto';
 import { db } from '$lib/server/db';
+import { classInfo, DEFAULT_STATS } from '$lib/classnotes';
 
 // 12 chars from an unambiguous alphabet (~60 bits) — read-aloud friendly,
 // not guessable.
@@ -13,11 +14,43 @@ function newCode(): string {
 
 export async function POST({ request, locals }) {
 	const body = await request.json();
+	const uid = locals.user!.id;
 	const playerName = String(body.playerName ?? '').trim();
 	if (!playerName) return json({ error: 'Name the player this key is for.' }, { status: 400 });
-	// Optional binding to a party character — the player's seat shows it.
+
+	// The invite forges the sheet: player name + PC name + class in, a party
+	// character with auto-filled level/stats/gold/kit out (edited later from
+	// the Portal). If the PC name already exists in the party, bind to it
+	// instead of forging a duplicate.
+	const pcName = String(body.pcName ?? '').trim();
+	const pcClass = String(body.pcClass ?? '').trim();
 	let pcId: number | null = Number(body.pcId) || null;
-	if (pcId && !db.prepare('SELECT 1 FROM pcs WHERE id = ? AND user_id = ?').get(pcId, locals.user!.id)) {
+	if (pcName) {
+		const existing = db
+			.prepare('SELECT id FROM pcs WHERE user_id = ? AND name = ? COLLATE NOCASE')
+			.get(uid, pcName) as { id: number } | undefined;
+		if (existing) {
+			pcId = existing.id;
+		} else {
+			const info = classInfo(pcClass);
+			const s = info?.stats ?? DEFAULT_STATS;
+			pcId = Number(
+				db
+					.prepare(
+						`INSERT INTO pcs (user_id, name, class, level, gold, str, dex, con, intel, wis, cha, items)
+						 VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)`
+					)
+					.run(
+						uid,
+						pcName,
+						info?.name ?? pcClass,
+						info?.gold ?? 0,
+						s.str, s.dex, s.con, s.intel, s.wis, s.cha,
+						JSON.stringify(info?.kit ?? [])
+					).lastInsertRowid
+			);
+		}
+	} else if (pcId && !db.prepare('SELECT 1 FROM pcs WHERE id = ? AND user_id = ?').get(pcId, uid)) {
 		pcId = null;
 	}
 	const code = newCode();
