@@ -88,7 +88,9 @@ function startServer(port, cwd) {
 		PORT: String(port),
 		HOST: '0.0.0.0', // players on the LAN can open Battle Ready / canvas
 		ORIGIN: `http://127.0.0.1:${port}`,
-		BODY_SIZE_LIMIT: '104857600'
+		BODY_SIZE_LIMIT: '104857600',
+		// Local worlds are bounded by the disk, not a hosting quota.
+		STORAGE_CAP_MB: '1048576'
 	};
 	fs.mkdirSync(cwd, { recursive: true });
 	if (app.isPackaged) {
