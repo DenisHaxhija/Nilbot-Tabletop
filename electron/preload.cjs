@@ -13,5 +13,6 @@ contextBridge.exposeInMainWorld('tabletop', {
 	forgetTable: (id) => ipcRenderer.invoke('tables:forget', id),
 	settingsInfo: () => ipcRenderer.invoke('settings:info'),
 	toggleFullscreen: () => ipcRenderer.invoke('settings:fullscreen'),
+	setAnnounce: (on) => ipcRenderer.invoke('settings:announce', on),
 	openDataFolder: () => ipcRenderer.invoke('settings:open-data')
 });

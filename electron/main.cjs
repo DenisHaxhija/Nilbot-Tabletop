@@ -375,14 +375,24 @@ ipcMain.handle('tables:join', async (_e, rawAddr, code) => {
 	}
 });
 
-ipcMain.handle('tables:list', () => {
+ipcMain.handle('tables:list', async () => {
 	const reg = loadRegistry();
-	return (reg.joined ?? []).map(({ id, address, playerName, dmName, joinedAt }) => ({
+	const rows = reg.joined ?? [];
+	// Presence by asking each saved table directly — point-to-point, nothing
+	// broadcast, invisible to the rest of the network.
+	const open = await Promise.all(
+		rows.map((t) => {
+			const [host, port] = t.address.split(':');
+			return reachable(host, Number(port));
+		})
+	);
+	return rows.map(({ id, address, playerName, dmName, joinedAt }, i) => ({
 		id,
 		address,
 		playerName,
 		dmName,
-		joinedAt
+		joinedAt,
+		open: open[i]
 	}));
 });
 
@@ -513,7 +523,9 @@ ipcMain.handle('campaigns:open', async (_e, id) => {
 		saveRegistry(reg);
 		startServer(port, path.join(campaignsRoot(), meta.id));
 		await waitForServer(port);
-		startBeacon(port, meta.name);
+		// Private by default: the table only announces itself on the LAN when
+		// the DM has switched announcing on (Settings).
+		if (loadPrefs().announceLAN) startBeacon(port, meta.name);
 		await authenticate(port, meta);
 		meta.lastPlayed = new Date().toISOString();
 		saveRegistry(reg);
@@ -547,7 +559,8 @@ ipcMain.handle('campaigns:remove', async (_e, id) => {
 ipcMain.handle('settings:info', () => ({
 	version: app.getVersion(),
 	dataPath: campaignsRoot(),
-	fullscreen: !!win?.isFullScreen()
+	fullscreen: !!win?.isFullScreen(),
+	announceLAN: !!loadPrefs().announceLAN
 }));
 ipcMain.handle('settings:fullscreen', () => {
 	if (!win) return false;
@@ -556,6 +569,17 @@ ipcMain.handle('settings:fullscreen', () => {
 	return win.isFullScreen();
 });
 ipcMain.handle('settings:open-data', () => shell.openPath(campaignsRoot()));
+ipcMain.handle('settings:announce', (_e, on) => {
+	savePrefs({ announceLAN: !!on });
+	if (on && server && currentPort) {
+		const reg = loadRegistry();
+		const meta = reg.campaigns.find((c) => c.port === currentPort);
+		startBeacon(currentPort, meta?.name ?? 'a table');
+	} else {
+		stopBeacon();
+	}
+	return !!on;
+});
 
 // ---------------------------------------------------------------- lifecycle
 

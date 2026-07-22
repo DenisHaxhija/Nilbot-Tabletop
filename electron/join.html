@@ -192,7 +192,7 @@
 			<header style="text-align:center">
 				<h1>JOIN A CAMPAIGN</h1>
 			</header>
-			<p class="sub">tables on your network appear by themselves — all you need is your key</p>
+			<p class="sub">announced tables appear by themselves — all you need is your key</p>
 
 			<div class="tables" id="tables"></div>
 
@@ -231,9 +231,8 @@
 					s.innerHTML =
 						'<span class="name"></span><span class="meta"></span><button class="rm" title="Forget this table">✕</button>';
 					s.querySelector('.name').textContent = `${t.dmName}'s table`;
-					const here = nearby.some((n) => n.address === t.address);
 					s.querySelector('.meta').textContent =
-						`as ${t.playerName} · ` + (here ? 'open now ●' : 'closed');
+						`as ${t.playerName} · ` + (t.open ? 'open now ●' : 'closed');
 					s.addEventListener('click', async (e) => {
 						if (e.target.closest('.rm')) return;
 						err.textContent = '';
@@ -259,7 +258,7 @@
 				if (!tablesEl.children.length) {
 					const d = document.createElement('div');
 					d.className = 'empty panelbox';
-					d.textContent = 'Listening for tables on your network… none heard yet.';
+					d.textContent = 'No tables yet — ask your DM to announce on the network, or enter the address below.';
 					tablesEl.appendChild(d);
 				}
 			}

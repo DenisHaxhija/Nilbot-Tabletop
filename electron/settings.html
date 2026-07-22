@@ -127,6 +127,13 @@
 				</div>
 				<div class="row">
 					<div>
+						<div class="what">Announce on network</div>
+						<div class="detail">off = your table is invisible; on = nearby players see it in Join a Campaign</div>
+					</div>
+					<div class="act"><button id="announce">...</button></div>
+				</div>
+				<div class="row">
+					<div>
 						<div class="what">Campaign files</div>
 						<div class="detail" id="data-path"></div>
 					</div>
@@ -141,9 +148,20 @@
 			function fsLabel(on) {
 				fsBtn.textContent = on ? 'ON — TURN OFF' : 'OFF — TURN ON';
 			}
+			const anBtn = document.getElementById('announce');
+			function anLabel(on) {
+				anBtn.textContent = on ? 'ON — GO DARK' : 'OFF — ANNOUNCE';
+			}
+			let announceOn = false;
+			anBtn.addEventListener('click', async () => {
+				announceOn = await window.tabletop.setAnnounce(!announceOn);
+				anLabel(announceOn);
+			});
 			(async () => {
 				const info = await window.tabletop.settingsInfo();
 				fsLabel(info.fullscreen);
+				announceOn = info.announceLAN;
+				anLabel(announceOn);
 				document.getElementById('data-path').textContent = info.dataPath;
 				document.getElementById('version').textContent = 'NilBot Tabletop · v' + info.version;
 			})();
