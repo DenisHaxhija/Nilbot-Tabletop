@@ -1,14 +1,16 @@
+import { seatOf } from '$lib/server/seat';
 import { canvasCast } from '$lib/server/canvas';
 
-// Server-Sent Events: pushes the current canvas cast whenever it changes.
+// Server-Sent Events for the player's seat: pushes the DM's canvas cast
+// whenever it changes — the same masked view the table screen shows.
 export async function GET({ locals }) {
-	const uid = locals.user!.id;
+	const seat = seatOf(locals.user!.id);
 	const encoder = new TextEncoder();
 
 	let watcher: ReturnType<typeof setInterval>;
 	let heartbeat: ReturnType<typeof setInterval>;
 
-	const snapshot = () => JSON.stringify(canvasCast(uid, '/api/characters'));
+	const snapshot = () => JSON.stringify(canvasCast(seat.dmId, '/api/table/chars'));
 
 	const stream = new ReadableStream({
 		start(controller) {

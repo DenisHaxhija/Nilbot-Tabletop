@@ -32,6 +32,7 @@
 			{#if info && info.caster !== 'none'}
 				<a href="/table/spells" class:active={active('/table/spells')}>✦ Spells</a>
 			{/if}
+			<a href="/table/canvas" class:active={active('/table/canvas')}>🎭 The Canvas</a>
 			<a href="/table/party" class:active={active('/table/party')}>🍻 The Party</a>
 		</nav>
 
