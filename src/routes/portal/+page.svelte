@@ -9,6 +9,25 @@
 	// The address players join through: LAN IP + this world's port.
 	const tableAddrs = $derived(data.lanIps.map((ip: string) => `${ip}:${page.url.port}`));
 
+	// A full invite: one artifact a player pastes or clicks — no addresses,
+	// no separate keys. Sent through any channel (email, Discord, Steam chat).
+	function inviteText(code: string, playerName: string) {
+		const addr = tableAddrs[0] ?? `127.0.0.1:${page.url.port}`;
+		return (
+			`⚔ ${playerName}, you're invited to the table!\n` +
+			`Click to take your seat: nilbot://join/${addr}/${code}\n` +
+			`(or open NilBot Tabletop → Join a Campaign and paste: NILBOT-JOIN:${addr}:${code})`
+		);
+	}
+	function mailtoInvite(code: string, playerName: string) {
+		return (
+			'mailto:?subject=' +
+			encodeURIComponent("You're invited to a NilBot Tabletop campaign") +
+			'&body=' +
+			encodeURIComponent(inviteText(code, playerName))
+		);
+	}
+
 	// --- players (the real people's characters — the party roster) ---
 	let addingPc = $state(false);
 	let pcName = $state('');
@@ -216,9 +235,9 @@
 	<section class="panel wide">
 		<h2>Invitations</h2>
 		<p class="inv-hint">
-			One key, one player. A key works exactly once — claiming binds it to whoever used it —
-			and you can revoke anyone individually. No key, no entry: strangers can't join your
-			campaign.
+			Cut a key, send the invite — email, Discord, Steam chat, anywhere. Your player clicks it
+			(or pastes it in Join a Campaign) and they're seated. One invite, one player, works once,
+			individually revocable. No invite, no entry.
 		</p>
 		{#if tableAddrs.length}
 			<p class="addr">
@@ -253,11 +272,14 @@
 							{#if inv.revoked}revoked{:else if inv.claimed_at}claimed ✓{:else}unclaimed{/if}
 						</span>
 						{#if !inv.revoked}
-							<button
-								class="inv-copy"
-								title="Copy key"
-								onclick={() => navigator.clipboard.writeText(inv.code)}>⧉</button
-							>
+							{#if !inv.claimed_at}
+								<button
+									class="inv-copy"
+									title="Copy invite — paste it to your player anywhere"
+									onclick={() => navigator.clipboard.writeText(inviteText(inv.code, inv.player_name))}>⧉ invite</button
+								>
+								<a class="inv-copy" title="Email the invite" href={mailtoInvite(inv.code, inv.player_name)}>✉</a>
+							{/if}
 							<button
 								class="inv-del"
 								title={inv.claimed_at ? 'Revoke — shuts their door' : 'Delete unused key'}

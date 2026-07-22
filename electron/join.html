@@ -199,7 +199,7 @@
 			<form class="join panelbox" id="join">
 				<div class="picked" id="picked">no table chosen — click one above, or type an address</div>
 				<input id="addr" placeholder="Table address (only if not listed) — e.g. 192.168.1.50:43257" autocomplete="off" />
-				<input id="key" class="key" placeholder="Your key" autocomplete="off" />
+				<input id="key" class="key" placeholder="Paste your invite (or key)" autocomplete="off" />
 				<p class="err" id="err"></p>
 				<button type="submit" id="go">⚔ TAKE YOUR SEAT</button>
 			</form>
@@ -269,10 +269,18 @@
 				err.textContent = '';
 				const go = document.getElementById('go');
 				go.disabled = true;
-				const res = await window.tabletop.joinTable(
-					document.getElementById('addr').value.trim() || pickedAddr,
-					document.getElementById('key').value
-				);
+				// A pasted invite carries everything: NILBOT-JOIN:<addr>:<key>
+				// (also accepts the nilbot:// link form).
+				let addr = document.getElementById('addr').value.trim() || pickedAddr;
+				let key = document.getElementById('key').value.trim();
+				let m =
+					key.match(/^NILBOT-JOIN:(.+):([A-Z2-9]+)$/i) ||
+					key.match(/^nilbot:\/\/join\/(.+)\/([A-Z2-9]+)$/i);
+				if (m) {
+					addr = m[1];
+					key = m[2];
+				}
+				const res = await window.tabletop.joinTable(addr, key);
 				go.disabled = false;
 				if (res && res.error) {
 					err.textContent = res.error;

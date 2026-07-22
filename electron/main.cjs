@@ -227,6 +227,10 @@ function showMain() {
 			e.preventDefault();
 			gameFile('title.html');
 		}
+		if (url.startsWith('mailto:')) {
+			e.preventDefault();
+			shell.openExternal(url);
+		}
 	});
 	// A dead address (world closed, port changed) must never strand the
 	// player on a black screen — fall back to the title.
@@ -349,9 +353,9 @@ function postJson(host, port, pathName, payload) {
 	});
 }
 
-ipcMain.handle('tables:join', async (_e, rawAddr, code) => {
+async function joinTable(rawAddr, code) {
 	const addr = parseAddr(rawAddr);
-	if (!addr) return { error: 'Address looks wrong — expected something like 192.168.1.50:43257.' };
+	if (!addr) return { error: 'That invite looks damaged — no table address in it.' };
 	try {
 		const res = await postJson(addr.host, addr.port, '/api/join', { code: String(code ?? '') });
 		if (res.status !== 200 || !res.body.ok) {
@@ -373,7 +377,29 @@ ipcMain.handle('tables:join', async (_e, rawAddr, code) => {
 	} catch {
 		return { error: 'Could not reach that table. Is the DM\'s world open?' };
 	}
-});
+}
+
+ipcMain.handle('tables:join', (_e, rawAddr, code) => joinTable(rawAddr, code));
+
+// nilbot://join/<host:port>/<KEY> — clicking an invite anywhere on the
+// machine opens the game and seats the player. That's "accept".
+async function handleInviteUrl(raw) {
+	try {
+		const u = new URL(raw);
+		if (u.protocol !== 'nilbot:') return;
+		const parts = (u.host + u.pathname).split('/').filter(Boolean);
+		const [action, addr, key] = parts.length === 3 ? parts : ['join', parts[0], parts[1]];
+		if (action !== 'join' || !addr || !key) return;
+		const res = await joinTable(addr, key);
+		if (res.ok) {
+			await ipcOpenTable(res.id);
+		} else if (win) {
+			gameFile('join.html');
+		}
+	} catch {}
+}
+
+let ipcOpenTable = async () => {};
 
 ipcMain.handle('tables:list', async () => {
 	const reg = loadRegistry();
@@ -410,7 +436,7 @@ function reachable(host, port) {
 	});
 }
 
-ipcMain.handle('tables:open', async (_e, id) => {
+ipcOpenTable = async (id) => {
 	const reg = loadRegistry();
 	const t = (reg.joined ?? []).find((x) => x.id === id);
 	if (!t) return { error: 'Table not found.' };
@@ -434,7 +460,8 @@ ipcMain.handle('tables:open', async (_e, id) => {
 	}
 	win.loadURL(target);
 	return { ok: true };
-});
+};
+ipcMain.handle('tables:open', (_e, id) => ipcOpenTable(id));
 
 let seatWin = null;
 function openSeatWindow(target) {
@@ -588,12 +615,18 @@ app.whenReady().then(() => {
 		app.quit();
 		return;
 	}
-	app.on('second-instance', () => {
+	app.setAsDefaultProtocolClient('nilbot');
+	app.on('second-instance', (_e, argv) => {
 		if (win) {
 			if (win.isMinimized()) win.restore();
 			win.focus();
 		}
+		const url = argv.find((a) => a.startsWith('nilbot://'));
+		if (url) handleInviteUrl(url);
 	});
+	app.on('open-url', (_e, url) => handleInviteUrl(url));
+	const bootUrl = process.argv.find((a) => a.startsWith('nilbot://'));
+	if (bootUrl) setTimeout(() => handleInviteUrl(bootUrl), 1500);
 	showMain();
 });
 
