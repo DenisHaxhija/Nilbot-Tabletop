@@ -149,6 +149,10 @@
 			.join input::placeholder {
 				color: #565b76;
 			}
+			.picked {
+				color: #8d90a8;
+				font-size: 1.05rem;
+			}
 			.join .key {
 				text-transform: uppercase;
 				letter-spacing: 0.14em;
@@ -188,12 +192,13 @@
 			<header style="text-align:center">
 				<h1>JOIN A CAMPAIGN</h1>
 			</header>
-			<p class="sub">your DM gives you a table address and a key — the key works once, and it's yours</p>
+			<p class="sub">tables on your network appear by themselves — all you need is your key</p>
 
 			<div class="tables" id="tables"></div>
 
 			<form class="join panelbox" id="join">
-				<input id="addr" placeholder="Table address — e.g. 192.168.1.50:43257" autocomplete="off" />
+				<div class="picked" id="picked">no table chosen — click one above, or type an address</div>
+				<input id="addr" placeholder="Table address (only if not listed) — e.g. 192.168.1.50:43257" autocomplete="off" />
 				<input id="key" class="key" placeholder="Your key" autocomplete="off" />
 				<p class="err" id="err"></p>
 				<button type="submit" id="go">⚔ TAKE YOUR SEAT</button>
@@ -203,24 +208,32 @@
 		<script>
 			const tablesEl = document.getElementById('tables');
 			const err = document.getElementById('err');
+			const pickedEl = document.getElementById('picked');
+			let pickedAddr = '';
+
+			function pick(addr, name) {
+				pickedAddr = addr;
+				pickedEl.textContent = `joining: ${name} (${addr})`;
+				document.getElementById('key').focus();
+			}
 
 			async function refresh() {
-				const list = await window.tabletop.listTables();
+				const [saved, nearby] = await Promise.all([
+					window.tabletop.listTables(),
+					window.tabletop.discoverTables()
+				]);
 				tablesEl.innerHTML = '';
-				if (!list.length) {
-					const d = document.createElement('div');
-					d.className = 'empty panelbox';
-					d.textContent = 'No tables yet — enter an address and your key below.';
-					tablesEl.appendChild(d);
-					return;
-				}
-				for (const t of list) {
+				const savedAddrs = new Set(saved.map((t) => t.address));
+
+				for (const t of saved) {
 					const s = document.createElement('div');
 					s.className = 'slot panelbox';
 					s.innerHTML =
 						'<span class="name"></span><span class="meta"></span><button class="rm" title="Forget this table">✕</button>';
 					s.querySelector('.name').textContent = `${t.dmName}'s table`;
-					s.querySelector('.meta').textContent = `as ${t.playerName} · ${t.address}`;
+					const here = nearby.some((n) => n.address === t.address);
+					s.querySelector('.meta').textContent =
+						`as ${t.playerName} · ` + (here ? 'open now ●' : 'closed');
 					s.addEventListener('click', async (e) => {
 						if (e.target.closest('.rm')) return;
 						err.textContent = '';
@@ -233,7 +246,24 @@
 					});
 					tablesEl.appendChild(s);
 				}
+
+				for (const n of nearby.filter((n) => !savedAddrs.has(n.address))) {
+					const s = document.createElement('div');
+					s.className = 'slot panelbox';
+					s.innerHTML = '<span class="name"></span><span class="meta">on your network ● click to join</span>';
+					s.querySelector('.name').textContent = n.name;
+					s.addEventListener('click', () => pick(n.address, n.name));
+					tablesEl.appendChild(s);
+				}
+
+				if (!tablesEl.children.length) {
+					const d = document.createElement('div');
+					d.className = 'empty panelbox';
+					d.textContent = 'Listening for tables on your network… none heard yet.';
+					tablesEl.appendChild(d);
+				}
 			}
+			setInterval(refresh, 2500);
 
 			document.getElementById('join').addEventListener('submit', async (e) => {
 				e.preventDefault();
@@ -241,7 +271,7 @@
 				const go = document.getElementById('go');
 				go.disabled = true;
 				const res = await window.tabletop.joinTable(
-					document.getElementById('addr').value,
+					document.getElementById('addr').value.trim() || pickedAddr,
 					document.getElementById('key').value
 				);
 				go.disabled = false;

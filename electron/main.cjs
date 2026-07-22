@@ -14,6 +14,7 @@ const fs = require('node:fs');
 const net = require('node:net');
 const http = require('node:http');
 const crypto = require('node:crypto');
+const dgram = require('node:dgram');
 
 const SERVER = path.join(__dirname, '..', 'build', 'index.js');
 const COOKIE = 'nilbot_session';
@@ -249,6 +250,63 @@ function showMain() {
 	gameFile('intro.html');
 }
 
+// ---------------------------------------------------------------- discovery
+// An open world announces itself on the LAN (UDP beacon, every 3s); the
+// Join screen lists tables it hears. Presence only — the invite key is
+// still the only thing that opens the door.
+
+const BEACON_PORT = 47800;
+let beacon = null;
+let beaconTimer = null;
+const heard = new Map(); // key: address:port -> { name, dmName, at }
+
+function startBeacon(port, name) {
+	stopBeacon();
+	beacon = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+	beacon.bind(() => {
+		try {
+			beacon.setBroadcast(true);
+		} catch {}
+		const msg = Buffer.from(JSON.stringify({ nb: 'table', name, port }));
+		beaconTimer = setInterval(() => {
+			for (const target of ['255.255.255.255', '127.0.0.1']) {
+				beacon?.send(msg, BEACON_PORT, target, () => {});
+			}
+		}, 3000);
+	});
+}
+function stopBeacon() {
+	if (beaconTimer) clearInterval(beaconTimer);
+	beaconTimer = null;
+	beacon?.close();
+	beacon = null;
+}
+
+const listener = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+listener.on('message', (msg, rinfo) => {
+	try {
+		const d = JSON.parse(String(msg));
+		if (d.nb === 'table' && d.port) {
+			heard.set(`${rinfo.address}:${d.port}`, {
+				name: String(d.name ?? 'a table'),
+				address: `${rinfo.address}:${d.port}`,
+				at: Date.now()
+			});
+		}
+	} catch {}
+});
+listener.on('error', () => {});
+try {
+	listener.bind(BEACON_PORT);
+} catch {}
+
+ipcMain.handle('tables:discover', () => {
+	const now = Date.now();
+	return [...heard.values()]
+		.filter((t) => now - t.at < 10000)
+		.map(({ name, address }) => ({ name, address }));
+});
+
 // ---------------------------------------------------------------- joining
 // The player's side of the invite handshake: POST the key to the DM's
 // world, keep the session, remember the table.
@@ -410,6 +468,7 @@ ipcMain.handle('campaigns:open', async (_e, id) => {
 		saveRegistry(reg);
 		startServer(port, path.join(campaignsRoot(), meta.id));
 		await waitForServer(port);
+		startBeacon(port, meta.name);
 		await authenticate(port, meta);
 		meta.lastPlayed = new Date().toISOString();
 		saveRegistry(reg);
@@ -471,6 +530,7 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
 	app.isQuitting = true;
+	stopBeacon();
 	stopServer();
 });
 

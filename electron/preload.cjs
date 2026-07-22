@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('tabletop', {
 	createCampaign: (name) => ipcRenderer.invoke('campaigns:create', name),
 	openCampaign: (id) => ipcRenderer.invoke('campaigns:open', id),
 	removeCampaign: (id) => ipcRenderer.invoke('campaigns:remove', id),
+	discoverTables: () => ipcRenderer.invoke('tables:discover'),
 	joinTable: (address, code) => ipcRenderer.invoke('tables:join', address, code),
 	listTables: () => ipcRenderer.invoke('tables:list'),
 	openTable: (id) => ipcRenderer.invoke('tables:open', id),
