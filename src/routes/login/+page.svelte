@@ -1,9 +1,15 @@
 <script lang="ts">
 	import '@fontsource/cinzel/700.css';
+	import { page } from '$app/state';
 	import goblin from '$lib/assets/goblin.png';
 	let { data, form } = $props();
 	let registering = $state(false);
 	const showSetup = $derived(data.firstRun || registering);
+	// Carry the post-login destination through the form action ("?/x" would drop it).
+	const nextQ = $derived.by(() => {
+		const next = page.url.searchParams.get('next');
+		return next ? `&next=${encodeURIComponent(next)}` : '';
+	});
 </script>
 
 <svelte:head><title>{data.firstRun ? 'Welcome' : 'Log in'} · NilBot</title></svelte:head>
@@ -16,7 +22,7 @@
 			<p class="sub">
 				{data.firstRun ? 'First time here — create your DM account.' : 'Create your DM account.'}
 			</p>
-			<form method="POST" action="?/setup">
+			<form method="POST" action="?/setup{nextQ}">
 				<label>Name <input name="username" required minlength="2" autocomplete="username" /></label>
 				<label>
 					Password
@@ -34,7 +40,7 @@
 			{/if}
 		{:else}
 			<p class="sub">Say Hi to Anri, Patrick, Charles and Echo</p>
-			<form method="POST" action="?/login">
+			<form method="POST" action="?/login{nextQ}">
 				<label>Name <input name="username" required autocomplete="username" /></label>
 				<label>
 					Password

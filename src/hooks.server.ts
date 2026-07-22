@@ -13,7 +13,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (path.startsWith('/api/')) {
 			return json({ error: 'Not logged in.' }, { status: 401 });
 		}
-		redirect(303, '/login');
+		// Remember where they were headed — login sends them back there.
+		redirect(303, `/login?next=${encodeURIComponent(path + event.url.search)}`);
 	}
 	if (event.locals.user && isPublic) {
 		redirect(303, '/');

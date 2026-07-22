@@ -7,6 +7,12 @@ export function load() {
 	return { firstRun: !userExists() };
 }
 
+// Where to land after auth: the ?next= path when it's a safe internal one.
+function nextPath(url: URL): string {
+	const next = url.searchParams.get('next') ?? '/';
+	return next.startsWith('/') && !next.startsWith('//') ? next : '/';
+}
+
 function setCookie(cookies: import('@sveltejs/kit').Cookies, userId: number) {
 	const { token, expires } = createSession(userId);
 	cookies.set(COOKIE, token, {
@@ -19,7 +25,7 @@ function setCookie(cookies: import('@sveltejs/kit').Cookies, userId: number) {
 }
 
 export const actions = {
-	setup: async ({ request, cookies }) => {
+	setup: async ({ request, cookies, url }) => {
 		const form = await request.formData();
 		const username = String(form.get('username') ?? '').trim();
 		const password = String(form.get('password') ?? '');
@@ -34,15 +40,15 @@ export const actions = {
 		} catch {
 			return fail(400, { error: 'That name is taken.' });
 		}
-		redirect(303, '/');
+		redirect(303, nextPath(url));
 	},
-	login: async ({ request, cookies }) => {
+	login: async ({ request, cookies, url }) => {
 		const form = await request.formData();
 		const username = String(form.get('username') ?? '').trim();
 		const password = String(form.get('password') ?? '');
 		const user = verifyLogin(username, password);
 		if (!user) return fail(400, { error: 'Wrong name or password.' });
 		setCookie(cookies, user.id);
-		redirect(303, '/');
+		redirect(303, nextPath(url));
 	}
 };
