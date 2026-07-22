@@ -74,6 +74,14 @@ function freePort() {
 	});
 }
 
+function portFree(port) {
+	return new Promise((resolve) => {
+		const srv = net.createServer();
+		srv.once('error', () => resolve(false));
+		srv.listen(port, '0.0.0.0', () => srv.close(() => resolve(true)));
+	});
+}
+
 function stopServer() {
 	if (server) {
 		server.kill();
@@ -219,6 +227,13 @@ function showMain() {
 			gameFile('title.html');
 		}
 	});
+	// A dead address (world closed, port changed) must never strand the
+	// player on a black screen — fall back to the title.
+	win.webContents.on('did-fail-load', (_e, code, _desc, url, isMainFrame) => {
+		if (isMainFrame && code !== -3 && String(url).startsWith('http')) {
+			gameFile('title.html');
+		}
+	});
 
 	let revealed = false;
 	const reveal = () => {
@@ -313,11 +328,28 @@ ipcMain.handle('tables:list', () => {
 	}));
 });
 
+function reachable(host, port) {
+	return new Promise((resolve) => {
+		const req = http.get({ host, port, path: '/login', timeout: 3000 }, (res) => {
+			res.resume();
+			resolve(true);
+		});
+		req.on('error', () => resolve(false));
+		req.on('timeout', () => {
+			req.destroy();
+			resolve(false);
+		});
+	});
+}
+
 ipcMain.handle('tables:open', async (_e, id) => {
 	const reg = loadRegistry();
 	const t = (reg.joined ?? []).find((x) => x.id === id);
 	if (!t) return { error: 'Table not found.' };
 	const [host, port] = t.address.split(':');
+	if (!(await reachable(host, Number(port)))) {
+		return { error: "Can't reach the table — is the DM's world open right now?" };
+	}
 	await win.webContents.session.cookies.set({
 		url: `http://${host}:${port}`,
 		name: COOKIE,
@@ -371,7 +403,11 @@ ipcMain.handle('campaigns:open', async (_e, id) => {
 	if (!meta) return { error: 'Campaign not found.' };
 	try {
 		stopServer();
-		const port = await freePort();
+		// A campaign keeps its port across restarts so players' saved table
+		// addresses stay valid; fall back to a fresh one only if it's taken.
+		let port = meta.port && (await portFree(meta.port)) ? meta.port : await freePort();
+		meta.port = port;
+		saveRegistry(reg);
 		startServer(port, path.join(campaignsRoot(), meta.id));
 		await waitForServer(port);
 		await authenticate(port, meta);
