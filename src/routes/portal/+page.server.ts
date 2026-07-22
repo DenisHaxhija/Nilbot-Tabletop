@@ -22,5 +22,19 @@ export function load({ locals }) {
 		)
 		.all(uid) as { id: number; title: string; at: string; note: string }[];
 
-	return { players, events };
+	const invites = db
+		.prepare(
+			`SELECT id, player_name, code, created_at, claimed_at, revoked
+			 FROM invites WHERE user_id = ? ORDER BY created_at DESC`
+		)
+		.all(uid) as {
+		id: number;
+		player_name: string;
+		code: string;
+		created_at: string;
+		claimed_at: string | null;
+		revoked: number;
+	}[];
+
+	return { players, events, invites };
 }

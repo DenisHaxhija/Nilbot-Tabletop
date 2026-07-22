@@ -434,6 +434,21 @@ try {
 	// column already present
 }
 
+// Tabletop Portal: per-player invitations. One key, one player — claiming
+// binds and kills the key; revocation shuts the door individually. The join
+// handshake (squid bridge) must verify: exists, not revoked, not claimed.
+db.exec(`
+CREATE TABLE IF NOT EXISTS invites (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  player_name TEXT NOT NULL,
+  code TEXT UNIQUE NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  claimed_at TEXT,
+  revoked INTEGER NOT NULL DEFAULT 0
+);
+`);
+
 // Tabletop Portal: session scheduling for the table.
 db.exec(`
 CREATE TABLE IF NOT EXISTS schedule_events (

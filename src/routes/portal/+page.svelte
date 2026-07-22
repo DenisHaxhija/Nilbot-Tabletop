@@ -79,6 +79,45 @@
 		invalidateAll();
 	}
 
+	// --- invitations ---
+	let invName = $state('');
+	let invError = $state('');
+
+	async function addInvite(e: SubmitEvent) {
+		e.preventDefault();
+		invError = '';
+		const res = await fetch('/api/portal/invites', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ playerName: invName })
+		});
+		const body = await res.json();
+		if (!res.ok) {
+			invError = body.error ?? 'Could not cut the key.';
+			return;
+		}
+		invName = '';
+		invalidateAll();
+	}
+
+	async function removeInvite(inv: { id: number; player_name: string; claimed_at: string | null }) {
+		if (inv.claimed_at) {
+			const ok = await confirmDialog({
+				title: 'Revoke this key?',
+				message: `${inv.player_name} will no longer be able to enter your campaign.`,
+				confirmLabel: 'Revoke',
+				danger: true
+			});
+			if (!ok) return;
+		}
+		await fetch('/api/portal/invites', {
+			method: 'DELETE',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ id: inv.id, hard: !inv.claimed_at })
+		});
+		invalidateAll();
+	}
+
 	function when(at: string) {
 		const d = new Date(at);
 		return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) +
@@ -168,8 +207,46 @@
 		</form>
 	</section>
 
-	<section class="panel wide whisper-panel">
-		<p class="whisper">The portal grows — attendance, reminders, and voices from the squid side will arrive here.</p>
+	<section class="panel wide">
+		<h2>Invitations</h2>
+		<p class="inv-hint">
+			One key, one player. A key works exactly once — claiming binds it to whoever used it —
+			and you can revoke anyone individually. No key, no entry: strangers can't join your
+			campaign.
+		</p>
+		<form class="inv-form" onsubmit={addInvite}>
+			<input bind:value={invName} placeholder="Player's name — e.g. Leke" required />
+			<button type="submit">＋ Cut a key</button>
+		</form>
+		{#if invError}<p class="err">{invError}</p>{/if}
+		{#if data.invites.length}
+			<ul class="invites">
+				{#each data.invites as inv (inv.id)}
+					<li class:dead={inv.revoked}>
+						<span class="inv-who">{inv.player_name}</span>
+						<code class="inv-code">{inv.code}</code>
+						<span class="inv-state">
+							{#if inv.revoked}revoked{:else if inv.claimed_at}claimed ✓{:else}unclaimed{/if}
+						</span>
+						{#if !inv.revoked}
+							<button
+								class="inv-copy"
+								title="Copy key"
+								onclick={() => navigator.clipboard.writeText(inv.code)}>⧉</button
+							>
+							<button
+								class="inv-del"
+								title={inv.claimed_at ? 'Revoke — shuts their door' : 'Delete unused key'}
+								onclick={() => removeInvite(inv)}>✕</button
+							>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="empty">No keys cut yet.</p>
+		{/if}
+		<p class="whisper">Claiming goes live with the squid bridge — cut keys now, hand them out when it opens.</p>
 	</section>
 </div>
 
@@ -320,14 +397,71 @@
 		margin: 0;
 		font-size: 0.88rem;
 	}
-	.whisper-panel {
-		border-style: dashed;
+	.inv-hint {
+		color: var(--muted);
+		font-size: 0.9rem;
+		margin: 0 0 0.8rem;
+	}
+	.inv-form {
+		display: flex;
+		gap: 0.5rem;
+		max-width: 420px;
+		margin-bottom: 0.8rem;
+	}
+	.inv-form input {
+		flex: 1;
+	}
+	.invites {
+		list-style: none;
+		margin: 0 0 0.8rem;
+		padding: 0;
+		display: grid;
+		gap: 0.4rem;
+	}
+	.invites li {
+		display: flex;
+		align-items: center;
+		gap: 0.8rem;
+		border: 1px solid var(--border);
+		background: var(--panel-2);
+		padding: 0.45rem 0.8rem;
+	}
+	.invites li.dead {
+		opacity: 0.45;
+	}
+	.inv-who {
+		min-width: 7rem;
+		font-family: var(--pixel);
+		font-size: 1.1rem;
+	}
+	.inv-code {
+		letter-spacing: 0.14em;
+		color: var(--accent);
+		user-select: all;
+	}
+	.inv-state {
+		margin-left: auto;
+		color: var(--muted);
+		font-size: 0.82rem;
+		font-style: italic;
+	}
+	.inv-copy,
+	.inv-del {
 		background: transparent;
+		border: none;
+		color: var(--muted);
+		padding: 0 0.25rem;
+	}
+	.inv-copy:hover {
+		color: var(--accent);
+	}
+	.inv-del:hover {
+		color: var(--danger);
 	}
 	.whisper {
 		margin: 0;
 		color: var(--muted);
 		font-style: italic;
-		text-align: center;
+		font-size: 0.85rem;
 	}
 </style>
