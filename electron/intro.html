@@ -1,0 +1,150 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>NilBot Tabletop</title>
+		<style>
+			@font-face {
+				font-family: 'VT323';
+				src: url('fonts/vt323-latin-400-normal.woff2') format('woff2');
+			}
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				overflow: hidden;
+				background: #050509;
+				user-select: none;
+				cursor: default;
+				font-family: 'VT323', monospace;
+			}
+			main {
+				position: fixed;
+				inset: 0;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				gap: 1.6rem;
+				animation: cardfade 3.6s steps(8) forwards;
+			}
+			@keyframes cardfade {
+				0% {
+					opacity: 0;
+				}
+				18% {
+					opacity: 1;
+				}
+				82% {
+					opacity: 1;
+				}
+				100% {
+					opacity: 0;
+				}
+			}
+			#emblem {
+				width: 90px;
+				height: 90px;
+				image-rendering: pixelated;
+				animation: emblemin 0.9s steps(5) both;
+			}
+			@keyframes emblemin {
+				from {
+					transform: scale(0.6);
+					opacity: 0;
+				}
+				to {
+					transform: scale(1);
+					opacity: 1;
+				}
+			}
+			h1 {
+				margin: 0;
+				font-weight: 400;
+				font-size: clamp(2.2rem, 6vw, 3.4rem);
+				letter-spacing: 0.18em;
+				text-indent: 0.18em;
+				color: #ffd37a;
+				text-shadow: 3px 3px 0 #221a30;
+				animation: risein 0.8s 0.25s steps(6) both;
+			}
+			.presents {
+				margin: -0.6rem 0 0;
+				font-size: 1.25rem;
+				letter-spacing: 0.5em;
+				text-indent: 0.5em;
+				color: #8d90a8;
+				text-shadow: 2px 2px 0 #131022;
+				animation: risein 0.8s 0.55s steps(6) both;
+			}
+			@keyframes risein {
+				from {
+					transform: translateY(10px);
+					opacity: 0;
+				}
+				to {
+					transform: translateY(0);
+					opacity: 1;
+				}
+			}
+			.skip {
+				position: absolute;
+				bottom: 1.1rem;
+				right: 1.4rem;
+				font-size: 0.95rem;
+				color: #3f4258;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<canvas id="emblem" width="15" height="15" aria-hidden="true"></canvas>
+			<div style="text-align:center">
+				<h1>THE GIANT SLAYERS</h1>
+				<p class="presents">PRESENTS</p>
+			</div>
+		</main>
+		<span class="skip">press any key</span>
+		<script>
+			// Crossed pixel swords — the Giant Slayers' mark.
+			const MAP = [
+				'g.............g',
+				'.S...........S.',
+				'..S.........S..',
+				'...S.......S...',
+				'....S.....S....',
+				'.....S...S.....',
+				'......S.S......',
+				'.......W.......',
+				'......S.S......',
+				'.....S...S.....',
+				'....S.....S....',
+				'.ggg.......ggg.',
+				'...h.......h...',
+				'..h.........h..',
+				'.g...........g.'
+			];
+			const PAL = { S: '#d4dce8', W: '#ffffff', g: '#d8a548', h: '#4a3320' };
+			const ctx = document.getElementById('emblem').getContext('2d');
+			MAP.forEach((row, y) => {
+				[...row].forEach((ch, x) => {
+					if (PAL[ch]) {
+						ctx.fillStyle = PAL[ch];
+						ctx.fillRect(x, y, 1, 1);
+					}
+				});
+			});
+
+			// On to the title — after the card plays, or the moment you ask.
+			let gone = false;
+			function go() {
+				if (gone) return;
+				gone = true;
+				location.replace('title.html');
+			}
+			setTimeout(go, 3700);
+			addEventListener('keydown', go);
+			addEventListener('mousedown', go);
+		</script>
+	</body>
+</html>

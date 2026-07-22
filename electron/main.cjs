@@ -18,7 +18,6 @@ const crypto = require('node:crypto');
 const SERVER = path.join(__dirname, '..', 'build', 'index.js');
 const COOKIE = 'nilbot_session';
 
-let splash = null;
 let win = null;
 let server = null;
 let currentPort = null;
@@ -165,19 +164,6 @@ async function authenticate(port, meta) {
 
 // ---------------------------------------------------------------- windows
 
-function showSplash() {
-	splash = new BrowserWindow({
-		width: 520,
-		height: 360,
-		frame: false,
-		resizable: false,
-		alwaysOnTop: true,
-		backgroundColor: '#0e0f12',
-		webPreferences: { contextIsolation: true }
-	});
-	splash.loadFile(path.join(__dirname, 'splash.html'));
-}
-
 function gameFile(name) {
 	win.loadFile(path.join(__dirname, name));
 }
@@ -216,15 +202,14 @@ function showMain() {
 	const reveal = () => {
 		if (revealed) return;
 		revealed = true;
-		splash?.destroy();
-		splash = null;
 		win.show();
 	};
 	win.once('ready-to-show', reveal);
 	win.webContents.once('did-finish-load', reveal);
 	setTimeout(reveal, 4000);
 
-	gameFile('title.html');
+	// Boot sequence: studio card, then the title screen.
+	gameFile('intro.html');
 }
 
 // ---------------------------------------------------------------- IPC
@@ -320,7 +305,6 @@ app.whenReady().then(() => {
 			win.focus();
 		}
 	});
-	showSplash();
 	showMain();
 });
 
