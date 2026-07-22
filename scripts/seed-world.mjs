@@ -163,6 +163,35 @@ if (doMaps) {
 
 const srcUser = Number(arg('--from-user', '1'));
 if (!process.argv.includes('--no-personal')) {
+	// custom bestiary sheets — the operator's own creatures become the world
+	// DM's, keeping their slugs so characters' sheet links keep pointing at
+	// them. Builder token art lives in the user store keyed by row id, so
+	// files are re-keyed to the new ids.
+	let cmNew = 0;
+	for (const m of src.prepare(`SELECT * FROM monsters WHERE user_id = ?`).all(srcUser)) {
+		if (dst.prepare(`SELECT 1 FROM monsters WHERE slug = ?`).get(m.slug)) continue;
+		const info = dst
+			.prepare(
+				`INSERT INTO monsters (slug, name, cr, cr_text, type, size, alignment, ac, hp, xp,
+				                       environment, source, layer, data, token, token_bytes, user_id)
+				 VALUES (@slug, @name, @cr, @cr_text, @type, @size, @alignment, @ac, @hp, @xp,
+				         @environment, @source, @layer, @data, NULL, NULL, ${dm.id})`
+			)
+			.run(m);
+		if (m.token && m.token.includes('/')) {
+			const ext = path.extname(m.token) || '.webp';
+			const destKey = `u${dm.id}/tokens/${info.lastInsertRowid}${ext}`;
+			if (copyFile(m.token, destKey)) {
+				dst.prepare(`UPDATE monsters SET token = ?, token_bytes = ? WHERE id = ?`).run(
+					destKey, m.token_bytes ?? 0, info.lastInsertRowid
+				);
+				addedBytes += m.token_bytes ?? 0;
+			}
+		}
+		cmNew++;
+	}
+	console.log(`custom bestiary sheets: +${cmNew}`);
+
 	// character groups — folders are referenced by name, so no remap
 	const haveGroup = new Set(
 		dst.prepare(`SELECT name FROM char_groups WHERE user_id = ?`).all(dm.id).map((r) => r.name)
