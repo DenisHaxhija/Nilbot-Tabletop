@@ -1,0 +1,177 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Settings · NilBot Tabletop</title>
+		<style>
+			@font-face {
+				font-family: 'Cinzel';
+				font-weight: 600;
+				src: url('fonts/cinzel-latin-600-normal.woff2') format('woff2');
+			}
+			@font-face {
+				font-family: 'Cinzel';
+				font-weight: 700;
+				src: url('fonts/cinzel-latin-700-normal.woff2') format('woff2');
+			}
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				overflow: hidden;
+				background: #0d1126;
+				color: #d8dae0;
+				font-family: Georgia, 'Times New Roman', serif;
+				user-select: none;
+			}
+			.screen {
+				position: fixed;
+				inset: 0;
+			}
+			.backdrop {
+				position: absolute;
+				inset: 0;
+				background:
+					linear-gradient(180deg, rgba(10, 12, 24, 0.72) 0%, rgba(12, 14, 26, 0.55) 40%, rgba(8, 9, 18, 0.72) 100%),
+					url('assets/title-bg.jpg') center 35% / cover no-repeat;
+			}
+			.vignette {
+				position: absolute;
+				inset: 0;
+				background: radial-gradient(ellipse 85% 80% at 50% 45%, transparent 60%, rgba(6, 6, 16, 0.5) 100%);
+				pointer-events: none;
+			}
+			main {
+				position: relative;
+				height: 100%;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				padding: 4rem 2rem 2rem;
+				box-sizing: border-box;
+				gap: 2.2rem;
+			}
+			.back {
+				position: absolute;
+				top: 1.2rem;
+				left: 1.4rem;
+				color: #8a8f9c;
+				text-decoration: none;
+				font-size: 0.85rem;
+				letter-spacing: 0.1em;
+			}
+			.back:hover {
+				color: #e6d9b8;
+			}
+			h1 {
+				margin: 0;
+				font-family: 'Cinzel', Georgia, serif;
+				font-weight: 700;
+				font-size: clamp(1.8rem, 5vw, 2.6rem);
+				letter-spacing: 0.3em;
+				text-indent: 0.3em;
+				color: #e6d9b8;
+				text-shadow: 0 0 24px rgba(230, 217, 184, 0.22);
+			}
+			.rows {
+				width: min(520px, 92vw);
+				display: grid;
+				gap: 0.7rem;
+			}
+			.row {
+				display: flex;
+				align-items: center;
+				gap: 1rem;
+				background: rgba(20, 22, 28, 0.75);
+				border: 1px solid #2c2618;
+				border-radius: 10px;
+				padding: 0.9rem 1.2rem;
+			}
+			.row .what {
+				font-family: 'Cinzel', Georgia, serif;
+				font-weight: 600;
+				font-size: 0.95rem;
+				letter-spacing: 0.08em;
+				color: #d9ceb2;
+			}
+			.row .detail {
+				color: #6a6f7c;
+				font-size: 0.78rem;
+				font-style: italic;
+			}
+			.row .act {
+				margin-left: auto;
+			}
+			.row button {
+				background: rgba(107, 90, 52, 0.35);
+				border: 1px solid #6b5a34;
+				border-radius: 8px;
+				color: #e6d9b8;
+				font: 600 0.85rem Georgia, serif;
+				letter-spacing: 0.08em;
+				padding: 0.45rem 1.1rem;
+				cursor: pointer;
+				transition:
+					background 0.2s ease,
+					border-color 0.2s ease;
+			}
+			.row button:hover {
+				background: rgba(107, 90, 52, 0.55);
+				border-color: #b8925c;
+			}
+			footer {
+				position: absolute;
+				bottom: 1.2rem;
+				color: #565b66;
+				font-size: 0.78rem;
+				letter-spacing: 0.12em;
+				font-style: italic;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="screen">
+			<div class="backdrop"></div>
+			<div class="vignette"></div>
+			<main>
+				<a class="back" href="title.html">← title</a>
+				<h1>SETTINGS</h1>
+				<div class="rows">
+					<div class="row">
+						<div>
+							<div class="what">Fullscreen</div>
+							<div class="detail">the table deserves the whole screen</div>
+						</div>
+						<div class="act"><button id="fs">…</button></div>
+					</div>
+					<div class="row">
+						<div>
+							<div class="what">Campaign files</div>
+							<div class="detail" id="data-path"></div>
+						</div>
+						<div class="act"><button id="open-data">Open folder</button></div>
+					</div>
+				</div>
+				<footer id="version"></footer>
+			</main>
+		</div>
+		<script>
+			const fsBtn = document.getElementById('fs');
+			function fsLabel(on) {
+				fsBtn.textContent = on ? 'On — turn off' : 'Off — turn on';
+			}
+			(async () => {
+				const info = await window.tabletop.settingsInfo();
+				fsLabel(info.fullscreen);
+				document.getElementById('data-path').textContent = info.dataPath;
+				document.getElementById('version').textContent = 'NilBot Tabletop · v' + info.version;
+			})();
+			fsBtn.addEventListener('click', async () => {
+				fsLabel(await window.tabletop.toggleFullscreen());
+			});
+			document.getElementById('open-data').addEventListener('click', () => {
+				window.tabletop.openDataFolder();
+			});
+		</script>
+	</body>
+</html>
