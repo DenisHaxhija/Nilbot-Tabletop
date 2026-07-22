@@ -22,6 +22,24 @@ let win = null;
 let server = null;
 let currentPort = null;
 
+// ---------------------------------------------------------------- prefs
+
+function prefsPath() {
+	return path.join(app.getPath('userData'), 'prefs.json');
+}
+function loadPrefs() {
+	try {
+		return JSON.parse(fs.readFileSync(prefsPath(), 'utf8'));
+	} catch {
+		return {};
+	}
+}
+function savePrefs(patch) {
+	const prefs = { ...loadPrefs(), ...patch };
+	fs.writeFileSync(prefsPath(), JSON.stringify(prefs, null, '\t'));
+	return prefs;
+}
+
 // ---------------------------------------------------------------- campaigns
 
 function campaignsRoot() {
@@ -169,11 +187,13 @@ function gameFile(name) {
 }
 
 function showMain() {
+	const prefs = loadPrefs();
 	win = new BrowserWindow({
 		width: 1440,
 		height: 900,
 		minWidth: 960,
 		minHeight: 640,
+		fullscreen: !!prefs.fullscreen,
 		show: false,
 		autoHideMenuBar: true,
 		backgroundColor: '#07070a',
@@ -288,6 +308,7 @@ ipcMain.handle('settings:info', () => ({
 ipcMain.handle('settings:fullscreen', () => {
 	if (!win) return false;
 	win.setFullScreen(!win.isFullScreen());
+	savePrefs({ fullscreen: win.isFullScreen() });
 	return win.isFullScreen();
 });
 ipcMain.handle('settings:open-data', () => shell.openPath(campaignsRoot()));
