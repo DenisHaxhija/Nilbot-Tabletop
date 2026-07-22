@@ -202,35 +202,14 @@ function showMain() {
 		return { action: 'deny' };
 	});
 
-	// In-app chrome, injected by the shell (the web app stays untouched):
-	// a Menu button that returns to the title screen from any app page.
+	// The app's own ◀ MENU element links to /__title; the shell intercepts
+	// the navigation and returns to the title screen. No injection needed —
+	// this app IS the game.
 	win.webContents.on('will-navigate', (e, url) => {
 		if (url.includes('/__title')) {
 			e.preventDefault();
 			gameFile('title.html');
 		}
-	});
-	win.webContents.on('did-finish-load', () => {
-		if (!win.webContents.getURL().startsWith('http')) return;
-		win.webContents
-			.executeJavaScript(`(function () {
-			if (document.getElementById('nb-menu-btn')) return;
-			const b = document.createElement('button');
-			b.id = 'nb-menu-btn';
-			b.textContent = '\\u2302 Menu';
-			Object.assign(b.style, {
-				position: 'fixed', bottom: '14px', right: '14px', zIndex: 99999,
-				background: 'rgba(16, 17, 22, 0.85)', color: '#b8925c',
-				border: '1px solid #3a3325', borderRadius: '8px', padding: '6px 14px',
-				font: '600 12px Georgia, serif', letterSpacing: '0.08em',
-				cursor: 'pointer', backdropFilter: 'blur(4px)'
-			});
-			b.onmouseenter = () => (b.style.color = '#e6d9b8');
-			b.onmouseleave = () => (b.style.color = '#b8925c');
-			b.onclick = () => location.assign('/__title');
-			document.body.appendChild(b);
-		})();`)
-			.catch(() => {});
 	});
 
 	let revealed = false;
