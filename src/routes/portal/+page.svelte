@@ -223,7 +223,11 @@
 		{#if tableAddrs.length}
 			<p class="addr">
 				Table address{tableAddrs.length > 1 ? 'es' : ''}:
-				{#each tableAddrs as a, i (a)}{i > 0 ? ' · ' : ''}<code>{a}</code>{/each}
+				{#each tableAddrs as a, i (a)}{i > 0 ? ' · ' : ''}<code>{a}</code><button
+						class="addr-copy"
+						title="Copy address"
+						onclick={() => navigator.clipboard.writeText(a)}>⧉</button
+					>{/each}
 				<span class="fine-inline">— players enter this plus their key in Join a Campaign</span>
 			</p>
 		{/if}
@@ -426,6 +430,16 @@
 		color: var(--accent);
 		letter-spacing: 0.06em;
 		user-select: all;
+	}
+	.addr-copy {
+		background: transparent;
+		border: none;
+		color: var(--muted);
+		padding: 0 0.3rem;
+		font-size: 0.95rem;
+	}
+	.addr-copy:hover {
+		color: var(--accent);
 	}
 	.fine-inline {
 		font-style: italic;
