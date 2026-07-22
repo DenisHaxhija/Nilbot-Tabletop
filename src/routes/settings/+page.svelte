@@ -1,20 +1,14 @@
 <script lang="ts">
 	let { data, form } = $props();
-
-	const usedMb = $derived(data.storage.usedBytes / 1024 / 1024);
-	const capMb = $derived(data.storage.capBytes / 1024 / 1024);
-	const usedPct = $derived(Math.min(100, (data.storage.usedBytes / data.storage.capBytes) * 100));
-	function fmt(mb: number) {
-		return mb >= 1024 ? `${(mb / 1024).toFixed(2)} GB` : `${mb.toFixed(1)} MB`;
-	}
 </script>
 
-<svelte:head><title>Settings · NilBot</title></svelte:head>
+<svelte:head><title>Settings · NilBot Tabletop</title></svelte:head>
 
 <div class="wrap">
 	<h1>Settings</h1>
-	<!-- Tabletop: no account UI — identity is the shell's job. Campaign
-	     worlds are opened from the title screen, not logged into. -->
+	<!-- Tabletop: no account UI (identity is the shell's job) and no storage
+	     quota (a local world's limit is your disk). App-level options like
+	     fullscreen live on the title screen's Settings. -->
 
 	<section class="panel">
 		<h2>General</h2>
@@ -40,22 +34,6 @@
 			<button type="submit">Save</button>
 		</form>
 	</section>
-
-	<section class="panel">
-		<h2>Storage</h2>
-		<div class="storage-line">
-			<span><b>{fmt(usedMb)}</b> of {fmt(capMb)} used</span>
-			<span class="muted">{Math.round(usedPct)}%</span>
-		</div>
-		<div class="bar" role="progressbar" aria-valuenow={Math.round(usedPct)} aria-valuemin={0} aria-valuemax={100}>
-			<div class="fill" class:warn={usedPct > 85} style="width:{usedPct}%"></div>
-		</div>
-		<small>
-			Imported maps, portraits, music and custom tokens count toward your space. Uploads are
-			compressed automatically — delete maps or songs you no longer use to free space.
-		</small>
-	</section>
-
 </div>
 
 <style>
@@ -67,22 +45,9 @@
 	h1 {
 		margin-bottom: 0;
 	}
-	.account-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 0.75rem;
-		color: var(--muted);
-		border-bottom: 1px solid var(--border);
-		padding-bottom: 0.9rem;
-	}
-	.account-row b {
-		color: var(--text);
-	}
 	.panel {
 		background: var(--panel);
 		border: 1px solid var(--border);
-		border-radius: 10px;
 		padding: 1.1rem 1.3rem;
 	}
 	h2 {
@@ -114,15 +79,6 @@
 	button {
 		justify-self: start;
 	}
-	.logout {
-		border-color: var(--danger);
-		color: var(--danger);
-		background: transparent;
-	}
-	.logout:hover {
-		background: #7e332a;
-		color: var(--text);
-	}
 	.err {
 		color: var(--danger);
 		margin: 0;
@@ -132,31 +88,5 @@
 		color: var(--accent);
 		margin: 0;
 		font-size: 0.88rem;
-	}
-	.muted {
-		color: var(--muted);
-	}
-	.storage-line {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		margin-bottom: 0.4rem;
-	}
-	.bar {
-		height: 10px;
-		background: var(--panel-2);
-		border: 1px solid var(--border);
-		border-radius: 99px;
-		overflow: hidden;
-		margin-bottom: 0.6rem;
-	}
-	.fill {
-		height: 100%;
-		background: var(--accent);
-		border-radius: 99px;
-		transition: width 0.3s;
-	}
-	.fill.warn {
-		background: var(--danger);
 	}
 </style>

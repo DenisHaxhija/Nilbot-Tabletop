@@ -1,14 +1,12 @@
 import { fail } from '@sveltejs/kit';
 import { getSetting, setSetting } from '$lib/server/db';
-import { quotaFor } from '$lib/server/storage';
 
-// Tabletop: no logout/password actions — identity belongs to the shell.
-// The world is opened from the title screen, not logged into.
+// Tabletop: no logout/password actions (identity belongs to the shell) and
+// no storage quota (local worlds are bounded by the disk, not a cap).
 export function load({ locals }) {
 	const uid = locals.user!.id;
 	return {
 		username: locals.user!.username,
-		storage: quotaFor(uid),
 		settings: {
 			dm_name: getSetting(uid, 'dm_name', locals.user!.username),
 			party_level: Number(getSetting(uid, 'party_level', '3')),
