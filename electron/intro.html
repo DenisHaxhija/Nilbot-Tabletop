@@ -28,6 +28,9 @@
 				gap: 1.6rem;
 				animation: cardfade 0.5s ease-out both;
 			}
+			main.out {
+				animation: cardout 0.45s ease both;
+			}
 			@keyframes cardfade {
 				from {
 					opacity: 0;
@@ -36,9 +39,17 @@
 					opacity: 1;
 				}
 			}
+			@keyframes cardout {
+				from {
+					opacity: 1;
+				}
+				to {
+					opacity: 0;
+				}
+			}
 			#emblem {
-				width: 90px;
-				height: 90px;
+				width: 102px;
+				height: 102px;
 				image-rendering: pixelated;
 			}
 			h1 {
@@ -69,31 +80,34 @@
 	</head>
 	<body>
 		<main>
-			<canvas id="emblem" width="15" height="15" aria-hidden="true"></canvas>
+			<canvas id="emblem" width="17" height="17" aria-hidden="true"></canvas>
 			<div style="text-align:center">
 				<h1>THE GIANT SLAYERS</h1>
-				<p class="presents">PRESENTS</p>
+				<p class="presents">PRESENT</p>
 			</div>
 		</main>
 		<span class="skip">press any key</span>
 		<script>
-			// Crossed pixel swords — the Giant Slayers' mark.
+			// Crossed pixel greatswords — the Giant Slayers' mark. Blades run
+			// three pixels thick: giant-slaying is heavy work.
 			const MAP = [
-				'g.............g',
-				'.S...........S.',
-				'..S.........S..',
-				'...S.......S...',
-				'....S.....S....',
-				'.....S...S.....',
-				'......S.S......',
-				'.......W.......',
-				'......S.S......',
-				'.....S...S.....',
-				'....S.....S....',
-				'.ggg.......ggg.',
-				'...h.......h...',
-				'..h.........h..',
-				'.g...........g.'
+				'.SS...........SS.',
+				'.SSS.........SSS.',
+				'..SSS.......SSS..',
+				'...SSS.....SSS...',
+				'....SSS...SSS....',
+				'.....SSS.SSS.....',
+				'......SSSSS......',
+				'.......SSS.......',
+				'......SSWSS......',
+				'.....SSS.SSS.....',
+				'....SSS...SSS....',
+				'...SSS.....SSS...',
+				'.ggggg.....ggggg.',
+				'....hhh...hhh....',
+				'...hhh.....hhh...',
+				'..hhh.......hhh..',
+				'.gg...........gg.'
 			];
 			const PAL = { S: '#d4dce8', W: '#ffffff', g: '#d8a548', h: '#4a3320' };
 			const ctx = document.getElementById('emblem').getContext('2d');
@@ -107,11 +121,14 @@
 			});
 
 			// On to the title — after the card plays, or the moment you ask.
+			// The card fades to black first; the title fades up from the same
+			// black, so the handoff reads as one motion.
 			let gone = false;
 			function go() {
 				if (gone) return;
 				gone = true;
-				location.replace('title.html');
+				document.querySelector('main').classList.add('out');
+				setTimeout(() => location.replace('title.html'), 460);
 			}
 			setTimeout(go, 2800);
 			addEventListener('keydown', go);
