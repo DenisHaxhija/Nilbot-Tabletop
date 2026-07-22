@@ -1,5 +1,4 @@
 <script lang="ts">
-	import '@fontsource/cinzel/700.css';
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 
@@ -21,112 +20,111 @@
 
 <svelte:head><title>The Canvas · NilBot Tabletop</title></svelte:head>
 
-<div class="stage">
-	{#if cast.length === 0}
-		<p class="empty" in:fade>The stage is empty — your DM has summoned no one…</p>
-	{:else}
-		<div class="cast" class:many={cast.length > 3}>
-			{#each cast as c (c.id)}
-				<figure in:fly={{ y: 26, duration: 500 }} out:fade={{ duration: 350 }}>
+<header class="top">
+	<h1>🎭 The Canvas</h1>
+	<p class="sub">who stands before you — as your DM paints the scene</p>
+</header>
+
+{#if cast.length === 0}
+	<p class="fine" in:fade>The canvas is empty — no one has stepped into the scene yet.</p>
+{:else}
+	<div class="cast" class:many={cast.length > 3}>
+		{#each cast as c (c.id)}
+			<figure class="card" in:fly={{ y: 26, duration: 500 }} out:fade={{ duration: 350 }}>
+				<div class="frame">
 					{#if c.img}
 						<img src={c.img} alt={c.name} />
 					{:else}
 						<div class="no-img">{c.name[0]}</div>
 					{/if}
-					<figcaption>
-						<span class="name">{c.name}</span>
-						{#if c.title}<span class="title">{c.title}</span>{/if}
-					</figcaption>
-				</figure>
-			{/each}
-		</div>
-	{/if}
-</div>
+				</div>
+				<figcaption>
+					<span class="name" class:mystery={c.name === '???'}>{c.name}</span>
+					{#if c.title}<span class="title">{c.title}</span>{/if}
+				</figcaption>
+			</figure>
+		{/each}
+	</div>
+{/if}
 
 <style>
-	.stage {
-		min-height: calc(100vh - 3.2rem);
-		display: flex;
-		background: radial-gradient(ellipse at 50% 40%, #14161b 0%, #0a0912 80%);
-		border: 1px solid var(--border);
-		padding: 2rem;
-		box-sizing: border-box;
+	.top {
+		margin-bottom: 1.2rem;
 	}
-	.empty {
-		color: #4a4f5a;
-		font-family: Georgia, serif;
+	h1 {
+		margin: 0;
+		font-family: 'VT323', monospace;
+		font-size: 2.4rem;
+		letter-spacing: 0.05em;
+		color: var(--accent);
+		text-shadow: 2px 2px 0 #0b0c1e;
+	}
+	.sub {
+		margin: 0.1rem 0 0;
+		color: var(--muted);
+	}
+	.fine {
+		color: var(--muted);
 		font-style: italic;
-		font-size: clamp(1.1rem, 2vw, 1.6rem);
-		margin: auto;
+		margin: 0;
 	}
 	.cast {
 		display: flex;
-		align-items: flex-end;
-		justify-content: center;
-		gap: clamp(1rem, 3vw, 3rem);
+		align-items: flex-start;
 		flex-wrap: wrap;
-		max-width: 100%;
-		margin: auto;
-		padding-bottom: 1rem;
+		gap: 1.2rem;
 	}
-	figure {
+	.card {
 		margin: 0;
 		display: grid;
-		justify-items: center;
-		gap: 0.7rem;
-		min-width: 0;
+		gap: 0;
+		background: var(--panel);
+		border: 1px solid var(--border);
+		border-top: 3px solid var(--accent-2);
+		padding: 0.7rem;
+		max-width: min(300px, 44vw);
 	}
-	figure img,
-	.no-img {
-		max-height: 62vh;
-		max-width: 24vw;
-		box-shadow: 0 12px 50px rgba(0, 0, 0, 0.8);
-		border: 1px solid rgba(255, 255, 255, 0.1);
+	.many .card {
+		max-width: min(230px, 30vw);
+	}
+	.frame {
+		border: 2px solid #38305a;
+		background: #0b0c1e;
+		line-height: 0;
+	}
+	.frame img {
+		width: 100%;
+		max-height: 48vh;
 		object-fit: cover;
 	}
-	.many figure img,
-	.many .no-img {
-		max-height: 48vh;
-		max-width: 16vw;
-	}
 	.no-img {
-		width: 18vw;
+		width: 100%;
 		aspect-ratio: 3 / 4;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #1e2128;
 		color: #4a4f5a;
-		font-family: 'Cinzel', Georgia, serif;
+		font-family: 'VT323', monospace;
 		font-size: 4rem;
 	}
 	figcaption {
 		display: grid;
-		justify-items: center;
-		gap: 0.1rem;
+		gap: 0.05rem;
+		padding: 0.55rem 0.2rem 0.1rem;
 	}
 	.name {
-		font-family: 'Cinzel', Georgia, serif;
-		color: #d4a24e;
-		font-size: clamp(1rem, 1.9vw, 1.7rem);
-		letter-spacing: 0.04em;
-		text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
-		text-align: center;
+		font-family: 'VT323', monospace;
+		font-size: 1.5rem;
+		letter-spacing: 0.05em;
+		color: var(--accent);
+		text-shadow: 2px 2px 0 #0b0c1e;
+	}
+	.name.mystery {
+		color: var(--muted);
 	}
 	.title {
-		color: #8a8f9c;
-		font-family: Georgia, serif;
+		color: var(--muted);
 		font-style: italic;
-		font-size: clamp(0.75rem, 1.1vw, 1rem);
-		text-align: center;
-	}
-	@media (max-width: 800px) {
-		figure img,
-		.no-img,
-		.many figure img,
-		.many .no-img {
-			max-width: 40vw;
-			max-height: 38vh;
-		}
+		font-size: 0.85rem;
 	}
 </style>
