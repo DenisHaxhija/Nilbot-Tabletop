@@ -113,8 +113,9 @@ function showMain(port) {
 		shell.openExternal(url);
 		return { action: 'deny' };
 	});
-	// The game opens on the title screen (falls through to /login on first run).
-	win.loadURL(`http://127.0.0.1:${port}/title?app=1`);
+	// The game opens on its own title screen (a local file — the web app is
+	// never touched by desktop styling); menu links lead into the server.
+	win.loadFile(path.join(__dirname, 'title.html'), { query: { port: String(port) } });
 	win.once('ready-to-show', () => {
 		splash?.destroy();
 		splash = null;
