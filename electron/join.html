@@ -1,0 +1,258 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Join a Campaign · NilBot Tabletop</title>
+		<style>
+			@font-face {
+				font-family: 'VT323';
+				src: url('fonts/vt323-latin-400-normal.woff2') format('woff2');
+			}
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				overflow: hidden;
+				background: #0b1026;
+				user-select: none;
+				cursor: default;
+				font-family: 'VT323', monospace;
+			}
+			#pixel-bg {
+				position: fixed;
+				inset: 0;
+				width: 100vw;
+				height: 100vh;
+				image-rendering: pixelated;
+			}
+			main {
+				position: fixed;
+				inset: 0;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				padding: 3.4rem 2rem 2rem;
+				box-sizing: border-box;
+				gap: 1.4rem;
+			}
+			.back {
+				position: absolute;
+				top: 1rem;
+				left: 1.2rem;
+				color: #8d90a8;
+				text-decoration: none;
+				font-size: 1.25rem;
+				text-shadow: 2px 2px 0 #131022;
+			}
+			.back:hover {
+				color: #ffe98a;
+			}
+			h1 {
+				margin: 0;
+				font-weight: 400;
+				font-size: clamp(2.2rem, 6vw, 3.2rem);
+				letter-spacing: 0.12em;
+				text-indent: 0.12em;
+				color: #ffd37a;
+				text-shadow: 3px 3px 0 #221a30;
+			}
+			.sub {
+				margin: -0.8rem 0 0;
+				color: #9a9eb8;
+				font-size: 1.05rem;
+				text-align: center;
+				text-shadow: 2px 2px 0 #131022;
+			}
+			.panelbox {
+				background: rgba(13, 16, 40, 0.92);
+				border: 3px solid #8d93a0;
+				box-shadow:
+					0 0 0 3px #0b1026,
+					inset 0 0 0 2px #0b1026;
+				padding: 0.9rem;
+				box-sizing: border-box;
+			}
+			.tables {
+				width: min(560px, 92vw);
+				display: grid;
+				gap: 0.8rem;
+				overflow-y: auto;
+				flex: 1;
+				padding: 0.3rem;
+			}
+			.slot {
+				display: flex;
+				align-items: center;
+				gap: 1rem;
+				cursor: pointer;
+			}
+			.slot:hover {
+				border-color: #ffe98a;
+			}
+			.slot .name {
+				font-size: 1.4rem;
+				color: #e8eaf4;
+				text-shadow: 2px 2px 0 #131022;
+			}
+			.slot:hover .name {
+				color: #ffe98a;
+			}
+			.slot .meta {
+				margin-left: auto;
+				color: #8d90a8;
+				font-size: 0.95rem;
+				text-align: right;
+				line-height: 1.25;
+			}
+			.slot .rm {
+				background: transparent;
+				border: none;
+				color: #565b76;
+				font-family: inherit;
+				font-size: 1.1rem;
+				cursor: pointer;
+				padding: 0.1rem 0.2rem;
+				opacity: 0;
+			}
+			.slot:hover .rm {
+				opacity: 1;
+			}
+			.slot .rm:hover {
+				color: #ff9a8a;
+			}
+			.empty {
+				color: #8d90a8;
+				font-size: 1.15rem;
+				text-align: center;
+				padding: 1.8rem 1rem;
+				text-shadow: 2px 2px 0 #131022;
+			}
+			.join {
+				width: min(560px, 92vw);
+				display: grid;
+				gap: 0.7rem;
+				padding: 0.3rem;
+			}
+			.join input {
+				background: rgba(13, 16, 40, 0.92);
+				border: 3px solid #8d93a0;
+				box-shadow: 0 0 0 3px #0b1026;
+				color: #e8eaf4;
+				font-family: inherit;
+				font-size: 1.2rem;
+				padding: 0.45rem 0.8rem;
+				outline: none;
+			}
+			.join input:focus {
+				border-color: #ffe98a;
+			}
+			.join input::placeholder {
+				color: #565b76;
+			}
+			.join .key {
+				text-transform: uppercase;
+				letter-spacing: 0.14em;
+			}
+			.join button {
+				background: #1c2b52;
+				border: 3px solid #8d93a0;
+				box-shadow: 0 0 0 3px #0b1026;
+				color: #ffe98a;
+				font-family: inherit;
+				font-size: 1.2rem;
+				letter-spacing: 0.06em;
+				padding: 0.5rem 1.2rem;
+				cursor: pointer;
+				justify-self: start;
+			}
+			.join button:hover {
+				background: #24365e;
+				border-color: #ffe98a;
+			}
+			.join button:disabled {
+				opacity: 0.5;
+			}
+			.err {
+				min-height: 1.3em;
+				color: #ff9a8a;
+				font-size: 1.05rem;
+				margin: 0;
+				text-shadow: 2px 2px 0 #131022;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="pixel-bg" aria-hidden="true"></canvas>
+		<main>
+			<a class="back" href="title.html">◀ TITLE</a>
+			<header style="text-align:center">
+				<h1>JOIN A CAMPAIGN</h1>
+			</header>
+			<p class="sub">your DM gives you a table address and a key — the key works once, and it's yours</p>
+
+			<div class="tables" id="tables"></div>
+
+			<form class="join panelbox" id="join">
+				<input id="addr" placeholder="Table address — e.g. 192.168.1.50:43257" autocomplete="off" />
+				<input id="key" class="key" placeholder="Your key" autocomplete="off" />
+				<p class="err" id="err"></p>
+				<button type="submit" id="go">⚔ TAKE YOUR SEAT</button>
+			</form>
+		</main>
+		<script src="pixel-sky.js"></script>
+		<script>
+			const tablesEl = document.getElementById('tables');
+			const err = document.getElementById('err');
+
+			async function refresh() {
+				const list = await window.tabletop.listTables();
+				tablesEl.innerHTML = '';
+				if (!list.length) {
+					const d = document.createElement('div');
+					d.className = 'empty panelbox';
+					d.textContent = 'No tables yet — enter an address and your key below.';
+					tablesEl.appendChild(d);
+					return;
+				}
+				for (const t of list) {
+					const s = document.createElement('div');
+					s.className = 'slot panelbox';
+					s.innerHTML =
+						'<span class="name"></span><span class="meta"></span><button class="rm" title="Forget this table">✕</button>';
+					s.querySelector('.name').textContent = `${t.dmName}'s table`;
+					s.querySelector('.meta').textContent = `as ${t.playerName} · ${t.address}`;
+					s.addEventListener('click', async (e) => {
+						if (e.target.closest('.rm')) return;
+						err.textContent = '';
+						const res = await window.tabletop.openTable(t.id);
+						if (res && res.error) err.textContent = res.error;
+					});
+					s.querySelector('.rm').addEventListener('click', async () => {
+						await window.tabletop.forgetTable(t.id);
+						refresh();
+					});
+					tablesEl.appendChild(s);
+				}
+			}
+
+			document.getElementById('join').addEventListener('submit', async (e) => {
+				e.preventDefault();
+				err.textContent = '';
+				const go = document.getElementById('go');
+				go.disabled = true;
+				const res = await window.tabletop.joinTable(
+					document.getElementById('addr').value,
+					document.getElementById('key').value
+				);
+				go.disabled = false;
+				if (res && res.error) {
+					err.textContent = res.error;
+					return;
+				}
+				await window.tabletop.openTable(res.id);
+			});
+
+			refresh();
+		</script>
+	</body>
+</html>

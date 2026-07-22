@@ -15,10 +15,15 @@ export async function POST({ request, locals }) {
 	const body = await request.json();
 	const playerName = String(body.playerName ?? '').trim();
 	if (!playerName) return json({ error: 'Name the player this key is for.' }, { status: 400 });
+	// Optional binding to a party character — the player's seat shows it.
+	let pcId: number | null = Number(body.pcId) || null;
+	if (pcId && !db.prepare('SELECT 1 FROM pcs WHERE id = ? AND user_id = ?').get(pcId, locals.user!.id)) {
+		pcId = null;
+	}
 	const code = newCode();
 	const info = db
-		.prepare('INSERT INTO invites (user_id, player_name, code) VALUES (?, ?, ?)')
-		.run(locals.user!.id, playerName, code);
+		.prepare('INSERT INTO invites (user_id, player_name, code, pc_id) VALUES (?, ?, ?, ?)')
+		.run(locals.user!.id, playerName, code, pcId);
 	return json({ ok: true, id: info.lastInsertRowid, code });
 }
 

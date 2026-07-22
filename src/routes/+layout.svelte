@@ -54,6 +54,7 @@
 	const bare = $derived(
 		page.url.pathname.startsWith('/login') ||
 			page.url.pathname.startsWith('/portal') || // the Portal has its own shell
+			page.url.pathname.startsWith('/table') || // the player's seat
 			/^\/present\/((char|map)\/)?\d/.test(page.url.pathname) ||
 			page.url.pathname === '/present/canvas' ||
 			page.url.pathname === '/present/shop'

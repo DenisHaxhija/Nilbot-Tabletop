@@ -147,7 +147,7 @@
 			</header>
 			<nav id="menu">
 				<a class="item" href="campaigns.html"><span class="label">Campaigns</span></a>
-				<button class="item" id="join"><span class="label">Join a Campaign</span></button>
+				<a class="item" href="join.html"><span class="label">Join a Campaign</span></a>
 				<a class="item" href="settings.html"><span class="label">Settings</span></a>
 				<button class="item quit" id="quit"><span class="label">Quit</span></button>
 			</nav>
@@ -159,10 +159,7 @@
 		<script src="pixel-sky.js"></script>
 		<script>
 			document.getElementById('quit').addEventListener('click', () => window.close());
-			document.getElementById('join').addEventListener('click', () => {
-				document.getElementById('whisper').textContent =
-					'the road to other tables is still being built...';
-			});
+
 		</script>
 	</body>
 </html>

@@ -1,9 +1,13 @@
 <script lang="ts">
 	import Token from '$lib/components/Token.svelte';
+	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 	import { confirmDialog } from '$lib/confirm.svelte';
 
 	let { data } = $props();
+
+	// The address players join through: LAN IP + this world's port.
+	const tableAddrs = $derived(data.lanIps.map((ip: string) => `${ip}:${page.url.port}`));
 
 	// --- players (the real people's characters — the party roster) ---
 	let addingPc = $state(false);
@@ -81,6 +85,7 @@
 
 	// --- invitations ---
 	let invName = $state('');
+	let invPc = $state('');
 	let invError = $state('');
 
 	async function addInvite(e: SubmitEvent) {
@@ -89,7 +94,7 @@
 		const res = await fetch('/api/portal/invites', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ playerName: invName })
+			body: JSON.stringify({ playerName: invName, pcId: invPc || null })
 		});
 		const body = await res.json();
 		if (!res.ok) {
@@ -97,6 +102,7 @@
 			return;
 		}
 		invName = '';
+		invPc = '';
 		invalidateAll();
 	}
 
@@ -214,8 +220,21 @@
 			and you can revoke anyone individually. No key, no entry: strangers can't join your
 			campaign.
 		</p>
+		{#if tableAddrs.length}
+			<p class="addr">
+				Table address{tableAddrs.length > 1 ? 'es' : ''}:
+				{#each tableAddrs as a, i (a)}{i > 0 ? ' · ' : ''}<code>{a}</code>{/each}
+				<span class="fine-inline">— players enter this plus their key in Join a Campaign</span>
+			</p>
+		{/if}
 		<form class="inv-form" onsubmit={addInvite}>
 			<input bind:value={invName} placeholder="Player's name — e.g. Leke" required />
+			<select bind:value={invPc}>
+				<option value="">bind to character… (optional)</option>
+				{#each data.players as p (p.id)}
+					<option value={p.id}>{p.name}</option>
+				{/each}
+			</select>
 			<button type="submit">＋ Cut a key</button>
 		</form>
 		{#if invError}<p class="err">{invError}</p>{/if}
@@ -224,6 +243,7 @@
 				{#each data.invites as inv (inv.id)}
 					<li class:dead={inv.revoked}>
 						<span class="inv-who">{inv.player_name}</span>
+						{#if inv.pc_name}<span class="inv-pc">as {inv.pc_name}</span>{/if}
 						<code class="inv-code">{inv.code}</code>
 						<span class="inv-state">
 							{#if inv.revoked}revoked{:else if inv.claimed_at}claimed ✓{:else}unclaimed{/if}
@@ -396,6 +416,25 @@
 		color: var(--danger);
 		margin: 0;
 		font-size: 0.88rem;
+	}
+	.addr {
+		color: var(--muted);
+		font-size: 0.9rem;
+		margin: 0 0 0.8rem;
+	}
+	.addr code {
+		color: var(--accent);
+		letter-spacing: 0.06em;
+		user-select: all;
+	}
+	.fine-inline {
+		font-style: italic;
+		font-size: 0.8rem;
+	}
+	.inv-pc {
+		color: var(--muted);
+		font-size: 0.85rem;
+		font-style: italic;
 	}
 	.inv-hint {
 		color: var(--muted);

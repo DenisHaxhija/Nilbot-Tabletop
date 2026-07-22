@@ -234,6 +234,108 @@ function showMain() {
 	gameFile('intro.html');
 }
 
+// ---------------------------------------------------------------- joining
+// The player's side of the invite handshake: POST the key to the DM's
+// world, keep the session, remember the table.
+
+function parseAddr(raw) {
+	const m = String(raw ?? '').trim().match(/^([a-zA-Z0-9.-]+):(\d{2,5})$/);
+	return m ? { host: m[1], port: Number(m[2]) } : null;
+}
+
+function postJson(host, port, pathName, payload) {
+	return new Promise((resolve, reject) => {
+		const body = JSON.stringify(payload);
+		const req = http.request(
+			{
+				host,
+				port,
+				path: pathName,
+				method: 'POST',
+				timeout: 8000,
+				headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+			},
+			(res) => {
+				let data = '';
+				res.on('data', (d) => (data += d));
+				res.on('end', () => {
+					try {
+						resolve({ status: res.statusCode, body: JSON.parse(data) });
+					} catch {
+						resolve({ status: res.statusCode, body: {} });
+					}
+				});
+			}
+		);
+		req.on('error', reject);
+		req.on('timeout', () => {
+			req.destroy();
+			reject(new Error('timeout'));
+		});
+		req.end(body);
+	});
+}
+
+ipcMain.handle('tables:join', async (_e, rawAddr, code) => {
+	const addr = parseAddr(rawAddr);
+	if (!addr) return { error: 'Address looks wrong — expected something like 192.168.1.50:43257.' };
+	try {
+		const res = await postJson(addr.host, addr.port, '/api/join', { code: String(code ?? '') });
+		if (res.status !== 200 || !res.body.ok) {
+			return { error: res.body.error ?? 'The table refused the key.' };
+		}
+		const reg = loadRegistry();
+		reg.joined = reg.joined ?? [];
+		const id = crypto.randomBytes(6).toString('hex');
+		reg.joined.push({
+			id,
+			address: `${addr.host}:${addr.port}`,
+			token: res.body.token,
+			playerName: res.body.playerName,
+			dmName: res.body.dmName,
+			joinedAt: new Date().toISOString()
+		});
+		saveRegistry(reg);
+		return { ok: true, id };
+	} catch {
+		return { error: 'Could not reach that table. Is the DM\'s world open?' };
+	}
+});
+
+ipcMain.handle('tables:list', () => {
+	const reg = loadRegistry();
+	return (reg.joined ?? []).map(({ id, address, playerName, dmName, joinedAt }) => ({
+		id,
+		address,
+		playerName,
+		dmName,
+		joinedAt
+	}));
+});
+
+ipcMain.handle('tables:open', async (_e, id) => {
+	const reg = loadRegistry();
+	const t = (reg.joined ?? []).find((x) => x.id === id);
+	if (!t) return { error: 'Table not found.' };
+	const [host, port] = t.address.split(':');
+	await win.webContents.session.cookies.set({
+		url: `http://${host}:${port}`,
+		name: COOKIE,
+		value: t.token,
+		httpOnly: true,
+		sameSite: 'lax'
+	});
+	win.loadURL(`http://${t.address}/table`);
+	return { ok: true };
+});
+
+ipcMain.handle('tables:forget', (_e, id) => {
+	const reg = loadRegistry();
+	reg.joined = (reg.joined ?? []).filter((x) => x.id !== id);
+	saveRegistry(reg);
+	return { ok: true };
+});
+
 // ---------------------------------------------------------------- IPC
 
 ipcMain.handle('campaigns:list', () => {

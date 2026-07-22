@@ -103,6 +103,13 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   expires_at TEXT NOT NULL
 );
 `);
+// Tabletop: accounts are the DM (shell-managed) or joined players
+// (invite-claimed, confined to /table).
+try {
+	db.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'dm'`);
+} catch {
+	// column already present
+}
 
 // Per-user data ownership. user_id NULL on monsters = shared base layer (Open5e).
 for (const table of ['notes', 'battles', 'maps', 'monsters']) {
@@ -448,6 +455,17 @@ CREATE TABLE IF NOT EXISTS invites (
   revoked INTEGER NOT NULL DEFAULT 0
 );
 `);
+// A key may be bound to a party character; claiming records who used it.
+try {
+	db.exec(`ALTER TABLE invites ADD COLUMN pc_id INTEGER`);
+} catch {
+	// column already present
+}
+try {
+	db.exec(`ALTER TABLE invites ADD COLUMN claimed_by INTEGER`);
+} catch {
+	// column already present
+}
 
 // Tabletop Portal: session scheduling for the table.
 db.exec(`

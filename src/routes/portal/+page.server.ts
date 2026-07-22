@@ -1,3 +1,4 @@
+import os from 'node:os';
 import { db } from '$lib/server/db';
 
 export function load({ locals }) {
@@ -24,8 +25,9 @@ export function load({ locals }) {
 
 	const invites = db
 		.prepare(
-			`SELECT id, player_name, code, created_at, claimed_at, revoked
-			 FROM invites WHERE user_id = ? ORDER BY created_at DESC`
+			`SELECT i.id, i.player_name, i.code, i.created_at, i.claimed_at, i.revoked, p.name AS pc_name
+			 FROM invites i LEFT JOIN pcs p ON p.id = i.pc_id
+			 WHERE i.user_id = ? ORDER BY i.created_at DESC`
 		)
 		.all(uid) as {
 		id: number;
@@ -34,7 +36,14 @@ export function load({ locals }) {
 		created_at: string;
 		claimed_at: string | null;
 		revoked: number;
+		pc_name: string | null;
 	}[];
 
-	return { players, events, invites };
+	// LAN addresses players use to reach this table (port is the page's own).
+	const lanIps = Object.values(os.networkInterfaces())
+		.flat()
+		.filter((i) => i && i.family === 'IPv4' && !i.internal)
+		.map((i) => i!.address);
+
+	return { players, events, invites, lanIps };
 }
