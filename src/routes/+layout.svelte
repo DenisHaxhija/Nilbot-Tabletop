@@ -205,6 +205,8 @@
 		border-radius: 0;
 		padding: 0.4rem 0.6rem;
 		font: inherit;
+		box-sizing: border-box;
+		max-width: 100%;
 		transition: border-color 0.15s ease, background 0.15s ease;
 	}
 	:global(button) {

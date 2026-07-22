@@ -243,28 +243,41 @@
 			individually revocable. No invite, no entry.
 		</p>
 		{#if tableAddrs.length}
-			<p class="addr">
-				Table address{tableAddrs.length > 1 ? 'es' : ''}:
-				{#each tableAddrs as a, i (a)}{i > 0 ? ' · ' : ''}<code>{a}</code><button
-						class="addr-copy"
-						title="Copy address"
-						onclick={() => navigator.clipboard.writeText(a)}>⧉</button
-					>{/each}
-				<span class="fine-inline">— players enter this plus their key in Join a Campaign</span>
-			</p>
+			<div class="addr">
+				<span class="addr-lbl">Table address{tableAddrs.length > 1 ? 'es' : ''}</span>
+				{#each tableAddrs as a (a)}
+					<span class="addr-item"
+						><code>{a}</code><button
+							class="addr-copy"
+							title="Copy address"
+							onclick={() => navigator.clipboard.writeText(a)}>⧉</button
+						></span
+					>
+				{/each}
+				<span class="fine-inline">players enter this plus their key in Join a Campaign</span>
+			</div>
 		{/if}
 		<form class="inv-form" onsubmit={addInvite}>
-			<input bind:value={invName} placeholder="Player's name — e.g. Leke" required />
-			<input bind:value={invPcName} placeholder="Character's name — e.g. Charles Lazule" required />
-			<select bind:value={invClass}>
-				<option value="">class…</option>
-				{#each CLASSES as c (c.name)}
-					<option value={c.name}>{c.name}</option>
-				{/each}
-			</select>
-			<button type="submit">＋ Cut a key</button>
+			<label class="field">
+				<span>Player</span>
+				<input bind:value={invName} placeholder="e.g. Leke" required />
+			</label>
+			<label class="field">
+				<span>Character</span>
+				<input bind:value={invPcName} placeholder="e.g. Charles Lazule" required />
+			</label>
+			<label class="field">
+				<span>Class</span>
+				<select bind:value={invClass}>
+					<option value="">— pick later —</option>
+					{#each CLASSES as c (c.name)}
+						<option value={c.name}>{c.name}</option>
+					{/each}
+				</select>
+			</label>
+			<button class="cut" type="submit">＋ Cut a key</button>
 		</form>
-		<p class="fine-inline forged">
+		<p class="forged">
 			Cutting the key forges the character's sheet — level 1, class stats, starting gold and gear —
 			ready to shape from <a href="/portal/players">Players</a>.
 		</p>
@@ -273,26 +286,36 @@
 			<ul class="invites">
 				{#each data.invites as inv (inv.id)}
 					<li class:dead={inv.revoked}>
-						<span class="inv-who">{inv.player_name}</span>
-						{#if inv.pc_name}<span class="inv-pc">as {inv.pc_name}</span>{/if}
+						<div class="inv-id">
+							<span class="inv-who">{inv.player_name}</span>
+							{#if inv.pc_name}<span class="inv-pc">as {inv.pc_name}</span>{/if}
+						</div>
 						<code class="inv-code">{inv.code}</code>
 						<span class="inv-state">
 							{#if inv.revoked}revoked{:else if inv.claimed_at}claimed ✓{:else}unclaimed{/if}
 						</span>
 						{#if !inv.revoked}
-							{#if !inv.claimed_at}
+							<div class="inv-actions">
+								{#if !inv.claimed_at}
+									<button
+										class="inv-copy"
+										title="Copy invite — paste it to your player anywhere"
+										onclick={() =>
+											navigator.clipboard.writeText(inviteText(inv.code, inv.player_name))}
+										>⧉ invite</button
+									>
+									<a
+										class="inv-copy"
+										title="Email the invite"
+										href={mailtoInvite(inv.code, inv.player_name)}>✉</a
+									>
+								{/if}
 								<button
-									class="inv-copy"
-									title="Copy invite — paste it to your player anywhere"
-									onclick={() => navigator.clipboard.writeText(inviteText(inv.code, inv.player_name))}>⧉ invite</button
+									class="inv-del"
+									title={inv.claimed_at ? 'Revoke — shuts their door' : 'Delete unused key'}
+									onclick={() => removeInvite(inv)}>✕</button
 								>
-								<a class="inv-copy" title="Email the invite" href={mailtoInvite(inv.code, inv.player_name)}>✉</a>
-							{/if}
-							<button
-								class="inv-del"
-								title={inv.claimed_at ? 'Revoke — shuts their door' : 'Delete unused key'}
-								onclick={() => removeInvite(inv)}>✕</button
-							>
+							</div>
 						{/if}
 					</li>
 				{/each}
@@ -310,14 +333,17 @@
 	}
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
 		gap: 1rem;
 		max-width: 1080px;
 	}
 	.panel {
 		background: var(--panel);
 		border: 1px solid var(--border);
+		border-top: 3px solid var(--accent-2);
 		padding: 1.1rem 1.3rem;
+		min-width: 0;
+		overflow: hidden;
 	}
 	.panel.wide {
 		grid-column: 1 / -1;
@@ -342,6 +368,14 @@
 		justify-items: center;
 		gap: 0.15rem;
 		text-align: center;
+		min-width: 0;
+	}
+	.pc b,
+	.pc small {
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.pc-img {
 		width: 52px;
@@ -357,8 +391,8 @@
 	}
 	.pc-del {
 		position: absolute;
-		top: -6px;
-		right: 6px;
+		top: 0;
+		right: 4px;
 		background: transparent;
 		border: none;
 		color: var(--muted);
@@ -374,6 +408,10 @@
 	.pc-form {
 		display: grid;
 		gap: 0.5rem;
+	}
+	.pc-form input {
+		min-width: 0;
+		width: 100%;
 	}
 	.row-btns {
 		display: flex;
@@ -396,15 +434,16 @@
 	}
 	.events li {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.9rem;
+		gap: 0.3rem 0.9rem;
 		border: 1px solid var(--border);
 		background: var(--panel-2);
 		padding: 0.55rem 0.8rem;
 	}
 	.ev-when {
 		display: grid;
-		min-width: 10.5rem;
+		flex: 0 0 auto;
 	}
 	.ev-when b {
 		font-size: 0.92rem;
@@ -416,6 +455,7 @@
 	.ev-body {
 		display: grid;
 		min-width: 0;
+		flex: 1 1 8rem;
 	}
 	.ev-title {
 		overflow: hidden;
@@ -441,10 +481,15 @@
 	}
 	.ev-form .row {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 0.5rem;
 	}
 	.ev-form .row input {
-		flex: 1;
+		flex: 1 1 11rem;
+		min-width: 0;
+	}
+	.ev-form input {
+		min-width: 0;
 	}
 	.err {
 		color: var(--danger);
@@ -452,9 +497,26 @@
 		font-size: 0.88rem;
 	}
 	.addr {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.25rem 0.8rem;
 		color: var(--muted);
 		font-size: 0.9rem;
-		margin: 0 0 0.8rem;
+		margin: 0 0 1rem;
+		padding: 0.5rem 0.8rem;
+		border: 1px solid var(--border);
+		background: var(--panel-2);
+	}
+	.addr-lbl {
+		font-family: var(--pixel);
+		font-size: 1rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--accent);
+	}
+	.addr-item {
+		white-space: nowrap;
 	}
 	.addr code {
 		color: var(--accent);
@@ -486,18 +548,38 @@
 		margin: 0 0 0.8rem;
 	}
 	.inv-form {
-		display: flex;
-		gap: 0.5rem;
-		max-width: 640px;
-		margin-bottom: 0.3rem;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+		gap: 0.6rem;
+		align-items: end;
+		max-width: 760px;
+		margin-bottom: 0.4rem;
 	}
-	.inv-form input {
-		flex: 1;
+	.field {
+		display: grid;
+		gap: 0.2rem;
 		min-width: 0;
+	}
+	.field span {
+		font-family: var(--pixel);
+		font-size: 0.95rem;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+	.field input,
+	.field select {
+		width: 100%;
+		min-width: 0;
+	}
+	.cut {
+		white-space: nowrap;
 	}
 	.forged {
 		color: var(--muted);
-		margin: 0 0 0.8rem;
+		font-style: italic;
+		font-size: 0.8rem;
+		margin: 0 0 1rem;
 	}
 	.forged a {
 		color: var(--accent);
@@ -511,8 +593,9 @@
 	}
 	.invites li {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.8rem;
+		gap: 0.25rem 0.9rem;
 		border: 1px solid var(--border);
 		background: var(--panel-2);
 		padding: 0.45rem 0.8rem;
@@ -520,10 +603,24 @@
 	.invites li.dead {
 		opacity: 0.45;
 	}
+	.inv-id {
+		flex: 1 1 11rem;
+		min-width: 0;
+		display: flex;
+		align-items: baseline;
+		gap: 0.45rem;
+	}
 	.inv-who {
-		min-width: 7rem;
 		font-family: var(--pixel);
 		font-size: 1.1rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.inv-pc {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.inv-code {
 		letter-spacing: 0.14em;
@@ -531,10 +628,16 @@
 		user-select: all;
 	}
 	.inv-state {
-		margin-left: auto;
 		color: var(--muted);
 		font-size: 0.82rem;
 		font-style: italic;
+	}
+	.inv-actions {
+		margin-left: auto;
+		display: flex;
+		align-items: center;
+		gap: 0.15rem;
+		white-space: nowrap;
 	}
 	.inv-copy,
 	.inv-del {
